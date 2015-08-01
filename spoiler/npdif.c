@@ -149,6 +149,7 @@ hash_file(FILE *fp)
 
 	/* Correct the length, base[1..length] inclusive. */	
 	hash->length = lineno-1;
+	rewind(fp);
 	
 	return hash;
 }
@@ -211,17 +212,6 @@ edit_distance(HashArray *A, HashArray *B)
 {
 	int k, p, delta, *fp, zero, zero_delta;
 
-// To create and edit script, we want to avoid swaping the files around.
-//
-//	/* Swap A and B if N < M.  Edit distance will be the same,
-//	 * but the edit-script will not!
-//	 */
-//	if (A->length > B->length) {
-//		HashArray *tmp = A;
-//		A = B;
-//		B = tmp;
-//	}
-
 	/* From -(M+1).. 0 .. (N+1); up & lower sentinels and zero. */
 	if (NULL == (fp = malloc((A->length + B->length + 3) * sizeof (*fp))))
 		return 0;		
@@ -233,11 +223,24 @@ edit_distance(HashArray *A, HashArray *B)
 	/* delta = N - M where A[1..M], B[1..N], and N >= M. */
 	delta = B->length - A->length;
 	
-	/* Axis shift from -(M+1)..(N+1) => 0 .. zero .. (M+N+3). */
+	/* Axis shift from -(M+1)..(N+1) => 0 .. (M+1) .. (M+N+3). */
 	zero = A->length + 1;
 	zero_delta = zero + delta;
+	
+	DEBUG("delta=%d M=%d N=%d fp.len=%d zero=%d zero_delta=%d\n", delta, A->length, B->length, (A->length + B->length + 3), zero, zero_delta);		
+
+	/* Swap zero and zero_delta if N < M.  The edit distance will
+	 * be the same, but edit script operations will be reversed.
+	 */
+	if (delta < 0) {
+		int tmp = zero;
+		zero = zero_delta;
+		zero_delta = tmp;
+		delta = -delta;
+
+		DEBUG("SWAP delta=%d M=%d N=%d fp.len=%d zero=%d zero_delta=%d\n", delta, A->length, B->length, (A->length + B->length + 3), zero, zero_delta);		
+	}
 		
-	DEBUG("delta=%d M=%d N=%d \n", delta, A->length, B->length);		
 	p = -1;	
 	do {
 		p++;
@@ -255,7 +258,6 @@ edit_distance(HashArray *A, HashArray *B)
 
 	free(fp);
 
-	delta = abs(delta);
 	INFO("delta=%d p=%d M=%d N=%d \n", delta, p, A->length, B->length);		
 
 	return delta + 2 * p;
@@ -264,7 +266,7 @@ edit_distance(HashArray *A, HashArray *B)
 int
 main(int argc, char **argv)
 {
-	int ch, s;
+	int ch;
 	FILE *fp1, *fp2;
 	HashArray *lines1, *lines2;
 
@@ -302,11 +304,8 @@ main(int argc, char **argv)
 		return EXIT_ERROR;
 	}
 		
-	rewind(fp1);
-	rewind(fp2);
-		
-	s = edit_distance(lines1, lines2);
-	(void) printf("%d\n", s);
+	ch = edit_distance(lines1, lines2);
+	(void) printf("%d\n", ch);
 
 	free(lines1);
 	free(lines2);

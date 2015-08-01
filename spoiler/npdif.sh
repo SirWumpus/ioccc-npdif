@@ -32,7 +32,9 @@ fi
 
 distance "1" "A" 2
 distance "123" "ABCDE" 8
+distance "ABCDE" "123" 8
 distance "ABD" "ABCD" 1
+distance "ABCD" "ABD" 1
 distance "ABCD" "ACDBECFD" 4
 distance "ABCDEF" "ABXYEFCD" 6
 distance "ABCDEFGHIJK" "ABCEFGIJKDEFGHIJK" 6

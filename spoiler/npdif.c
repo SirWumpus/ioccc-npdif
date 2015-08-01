@@ -26,8 +26,16 @@
 #define INIT_SIZE		32	/* Power of two. */
 #endif
 
+#define abs(a)			((a) < 0 ? -(a) : (a))
 #define max(a, b)		((a) < (b) ? (b) : (a))
 
+typedef struct action {
+	int op;			/* 1 insert, -1 delete */
+	int line1;
+	int line2;
+	struct action *next;
+} Action;
+	
 typedef unsigned long Hash;
 
 typedef struct {
@@ -44,12 +52,12 @@ typedef struct {
 static int debug;
 
 #define EXIT_ERROR		2
-#define error(x)		{ fputs("dif: ", stderr); perror(x); }
+#define error(x)		{ (void) fputs("dif: ", stderr); perror(x); }
 
-# define EPRINTF(f, ...)	(void) fprintf(stderr, f, __VA_ARGS__)
-# define INFO(f, ...)		{ if (0 < debug) EPRINTF(f, __VA_ARGS__); }
-# define DEBUG(f, ...)		{ if (1 < debug) EPRINTF(f, __VA_ARGS__); }
-# define DUMP(f, ...)		{ if (2 < debug) EPRINTF(f, __VA_ARGS__); }
+#define EPRINTF(f, ...)		(void) fprintf(stderr, f, __VA_ARGS__)
+#define INFO(f, ...)		{ if (0 < debug) EPRINTF(f, __VA_ARGS__); }
+#define DEBUG(f, ...)		{ if (1 < debug) EPRINTF(f, __VA_ARGS__); }
+#define DUMP(f, ...)		{ if (2 < debug) EPRINTF(f, __VA_ARGS__); }
 
 /**
  * FNV1a
@@ -180,13 +188,15 @@ file(char *u)
 int
 snake(int k, int y, HashArray *A, HashArray *B)
 {
-	int x;
-	
-	/*** NOTE: no hash collision check. ***/
-	x = y - k;
+	/* Diagonal k = y - x of matrix [-(M+1), (N-1)], where
+	 * row 0 and column 0 are initialised with sentenial -1.
+	 */
+	int x = y - k;
 	DUMP("snake in k=%d y=%d x=%d\n", k, y, x);
 
-	/* The algorithm assumes 1-based indexing, A[1..M] and B[1..N]. */
+	/* The algorithm assumes 1-based indexing, A[1..M] and B[1..N]. 
+	 * NOTE no hash collision checking yet.
+	 */
 	while (x < A->length && y < B->length && A->base[x+1].hash == B->base[y+1].hash) {
 		x++;
 		y++;
@@ -201,14 +211,16 @@ edit_distance(HashArray *A, HashArray *B)
 {
 	int k, p, delta, *fp, zero, zero_delta;
 
-	/* Swap A and B if N < M.  Edit distance will be the same,
-	 * but the edit-script will not!
-	 */
-	if (A->length > B->length) {
-		HashArray *tmp = A;
-		A = B;
-		B = tmp;
-	}
+// To create and edit script, we want to avoid swaping the files around.
+//
+//	/* Swap A and B if N < M.  Edit distance will be the same,
+//	 * but the edit-script will not!
+//	 */
+//	if (A->length > B->length) {
+//		HashArray *tmp = A;
+//		A = B;
+//		B = tmp;
+//	}
 
 	/* From -(M+1).. 0 .. (N+1); up & lower sentinels and zero. */
 	if (NULL == (fp = malloc((A->length + B->length + 3) * sizeof (*fp))))
@@ -222,12 +234,11 @@ edit_distance(HashArray *A, HashArray *B)
 	delta = B->length - A->length;
 	
 	/* Axis shift from -(M+1)..(N+1) => 0 .. zero .. (M+N+3). */
-	zero = A->length + 2;
+	zero = A->length + 1;
 	zero_delta = zero + delta;
 		
-	p = -1;	
-
 	DEBUG("delta=%d M=%d N=%d \n", delta, A->length, B->length);		
+	p = -1;	
 	do {
 		p++;
 		for (k = zero -p; k < zero_delta; k++) {
@@ -244,6 +255,7 @@ edit_distance(HashArray *A, HashArray *B)
 
 	free(fp);
 
+	delta = abs(delta);
 	INFO("delta=%d p=%d M=%d N=%d \n", delta, p, A->length, B->length);		
 
 	return delta + 2 * p;

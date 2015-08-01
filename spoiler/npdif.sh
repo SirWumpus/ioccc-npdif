@@ -1,17 +1,20 @@
 #!/bin/sh
-
 function distance
 {
-	printf "$1" | sed -e 's/./&\n/g' >tmp$$.A
-	printf "$2" | sed -e 's/./&\n/g' >tmp$$.B
+	typeset A="$1"; shift
+	typeset B="$1"; shift
+	typeset expect="$1"; shift
 
-	echo "<<< A=$1 B=$2"
-	dist=$(./npdif -vvv tmp$$.A tmp$$.B)
+	printf "$A" | sed -e 's/./&\n/g' >tmp$$.A
+	printf "$B" | sed -e 's/./&\n/g' >tmp$$.B
 
-	printf ">>> got=%d expect=%d " "$dist" "$3"
+	echo "<<< A='$A' B='$B' $@"
+	dist=$(./npdif $@ tmp$$.A tmp$$.B | tr -d '\r')
+
+	printf '>>> got=%d expect=%d ' "$dist" "$expect"
 	rm tmp$$.A tmp$$.B
 
-	if [ $dist -ne $3 ]; then
+	if [ "$dist" -ne "$expect" ]; then
 		echo FAIL
 		return 1
 	fi
@@ -24,6 +27,8 @@ if ! make npdif ; then
 	exit 1
 fi
 
+distance "1" "A" 2
+distance "123" "ABCDE" 8
 distance "ABD" "ABCD" 1
 distance "ABCD" "ACDBECFD" 4
 distance "ABCDEF" "ABXYEFCD" 6

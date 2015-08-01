@@ -1,15 +1,18 @@
-#!/bin/sh
+#!/bin/ksh
+
 function distance
 {
 	typeset A="$1"; shift
 	typeset B="$1"; shift
 	typeset expect="$1"; shift
 
-	printf "$A" | sed -e 's/./&\n/g' >tmp$$.A
-	printf "$B" | sed -e 's/./&\n/g' >tmp$$.B
+	printf "$A" | sed -e 's/./&\
+/g' >tmp$$.A
+	printf "$B" | sed -e 's/./&\
+/g' >tmp$$.B
 
 	echo "<<< A='$A' B='$B' $@"
-	dist=$(./npdif $@ tmp$$.A tmp$$.B | tr -d '\r')
+	typeset dist=$(./npdif $@ tmp$$.A tmp$$.B | tr -d '\r')
 
 	printf '>>> got=%d expect=%d ' "$dist" "$expect"
 	rm tmp$$.A tmp$$.B
@@ -19,7 +22,7 @@ function distance
 		return 1
 	fi
 
-	echo OK
+	echo -OK-
 	return 0
 }
 

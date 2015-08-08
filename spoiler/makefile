@@ -28,7 +28,7 @@ $O$E :
 all: npdif
 
 clean:
-	rm -f npdif$E
+	rm -f npdif$E *.core
 
 install:
 	[ -f cp ]

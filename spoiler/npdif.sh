@@ -1,5 +1,7 @@
 #!/bin/ksh
 
+flags="$@"
+
 function distance
 {
 	typeset A="$1"; shift
@@ -30,13 +32,13 @@ if ! make npdif ; then
 	exit 1
 fi
 
-distance "1" "A" 2
-distance "123" "ABCDE" 8
-distance "ABCDE" "123" 8
-distance "ABD" "ABCD" 1
-distance "ABCD" "ABD" 1
-distance "ABCD" "ACDBECFD" 4
-distance "ABCDEF" "ABXYEFCD" 6
-distance "ABCDEFGHIJK" "ABCEFGIJKDEFGHIJK" 6
-distance "abcabba" "cbabac" 5
-distance "acebdabbabed" "acbdeacbed" 6
+distance "1" "A" 2 $flags
+distance "123" "ABCDE" 8 $flags
+distance "ABCDE" "123" 8 $flags
+distance "ABD" "ABCD" 1 $flags
+distance "ABCD" "ABD" 1 $flags
+distance "ABCD" "ACDBECFD" 4 $flags
+distance "ABCDEF" "ABXYEFCD" 6 $flags
+distance "ABCDEFGHIJK" "ABCEFGIJKDEFGHIJK" 6 $flags
+distance "ABCABBA" "CBABAC" 5 $flags
+distance "ACEBDABBABED" "ACBDEACBED" 6 $flags

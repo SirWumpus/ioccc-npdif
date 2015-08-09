@@ -53,6 +53,7 @@ typedef struct {
 
 static int debug;
 static int invert;
+static int print_distance;
 
 #define EXIT_ERROR		2
 #define error(x)		{ (void) fputs("dif: ", stderr); perror(x); }
@@ -360,7 +361,8 @@ edit_distance(FILE *fpA, FILE *fpB, HashArray *A, HashArray *B)
 		DEBUG("3rd fp[%d]=%d p=%d \n", zero_delta, fp[zero_delta].y, p);		
 	} while (fp[zero_delta].y != B->length);
 
-	dump_script(fpA, fpB, fp[zero_delta].edit);
+	if (!print_distance)
+		dump_script(fpA, fpB, fp[zero_delta].edit);
 	free(fp);
 
 	DEBUG("dist=%d delta=%d p=%d M=%d N=%d \n", delta + 2 * p, delta, p, A->length, B->length);		
@@ -375,8 +377,11 @@ main(int argc, char **argv)
 	FILE *fpA, *fpB;
 	HashArray *A, *B;
 
-	while ((ch = getopt(argc, argv, "v")) != -1) {
+	while ((ch = getopt(argc, argv, "dv")) != -1) {
 		switch (ch) {
+		case 'd':
+			print_distance = 1;
+			break;
 		case 'v':
 			debug++;
 			break;
@@ -387,7 +392,7 @@ main(int argc, char **argv)
 	}
 
 	if (argc <= optind) {
-		(void) fprintf(stderr, "usage: %s [-v] file1 file2\n", argv[0]);
+		(void) fprintf(stderr, "usage: %s [-dv] file1 file2\n", argv[0]);
 		return EXIT_ERROR;
 	}
 
@@ -410,7 +415,8 @@ main(int argc, char **argv)
 	}
 
 	ch = edit_distance(fpA, fpB, A, B);
-	if (0 < debug) printf("%d\n", ch);
+	if (print_distance)
+		printf("%d\n", ch);
 
 	free(A);
 	free(B);

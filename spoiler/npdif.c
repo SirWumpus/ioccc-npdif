@@ -26,15 +26,14 @@
 #define INIT_SIZE		32	/* Power of two. */
 #endif
 
-#define abs(a)			((a) < 0 ? -(a) : (a))
-#define max(a, b)		((a) < (b) ? (b) : (a))
-
 typedef struct action {
-	int op;			/* 1 insert, -1 delete */
+	int op;			/* 1 insert, 0 delete */
 	int line1;
 	int line2;
+	long seek1;
+	long seek2;
 	struct action *next;
-} Action;
+} Edit;
 	
 typedef unsigned long Hash;
 
@@ -50,6 +49,8 @@ typedef struct {
 } HashArray;
 
 static int debug;
+static int invert;
+static Edit **script;
 
 #define EXIT_ERROR		2
 #define error(x)		{ (void) fputs("dif: ", stderr); perror(x); }
@@ -187,10 +188,23 @@ file(char *u)
 }
 
 int
-snake(int k, int y, HashArray *A, HashArray *B)
+snake(int zero_k, int *fp, HashArray *A, HashArray *B)
 {
+	int k = zero_k - A->length - 1;
+	
+	/* fp[] holds the furthest y along diagonal k. */
+	int h = fp[zero_k-1];
+	int v = fp[zero_k+1];
+	
+	/* max(fp[zero_k-1] + 1, fp[zero_k+1]) */
+	int y =(v <= h+1) ? h+1 : v;
+
 	/* Diagonal k = y - x of matrix [-(M+1), (N-1)], where
 	 * row 0 and column 0 are initialised with sentenial -1.
+	 *
+	 * k-diagonal	= A and B match
+	 * y-horizontal	= insert from B
+	 * x-vertical	= delete from A
 	 */
 	int x = y - k;
 	DUMP("snake in k=%d y=%d x=%d\n", k, y, x);
@@ -202,6 +216,7 @@ snake(int k, int y, HashArray *A, HashArray *B)
 		x++;
 		y++;
 	}
+
 	DUMP("snake out k=%d y=%d x=%d\n", k, y, x);
 	
 	return y;
@@ -212,13 +227,15 @@ edit_distance(HashArray *A, HashArray *B)
 {
 	int k, p, delta, *fp, zero, zero_delta;
 
-	/* From -(M+1).. 0 .. (N+1); up & lower sentinels and zero. */
-	if (NULL == (fp = malloc((A->length + B->length + 3) * sizeof (*fp))))
-		return 0;		
-		
-	/* fp[-(M+1)..(N+1)] := -1 */		
-	for (k = 0; k < A->length + B->length + 3; k++)
-		fp[k] = -1;
+	/* Swap A and B if N < M.  The edit distance will be the
+	 * same, but edit script operations will be reversed.
+	 */
+	if (A->length > B->length) {
+		void *tmp = A;
+		A = B;
+		B = tmp;
+		invert = 1;
+	}
 
 	/* delta = N - M where A[1..M], B[1..N], and N >= M. */
 	delta = B->length - A->length;
@@ -226,39 +243,35 @@ edit_distance(HashArray *A, HashArray *B)
 	/* Axis shift from -(M+1)..(N+1) => 0 .. (M+1) .. (M+N+3). */
 	zero = A->length + 1;
 	zero_delta = zero + delta;
-	
-	DEBUG("delta=%d M=%d N=%d fp.len=%d zero=%d zero_delta=%d\n", delta, A->length, B->length, (A->length + B->length + 3), zero, zero_delta);		
 
-	/* Swap zero and zero_delta if N < M.  The edit distance will
-	 * be the same, but edit script operations will be reversed.
-	 */
-	if (delta < 0) {
-		int tmp = zero;
-		zero = zero_delta;
-		zero_delta = tmp;
-		delta = -delta;
-
-		DEBUG("SWAP delta=%d M=%d N=%d fp.len=%d zero=%d zero_delta=%d\n", delta, A->length, B->length, (A->length + B->length + 3), zero, zero_delta);		
-	}
+	/* From -(M+1).. 0 .. (N+1); up & lower sentinels and zero. */
+	if (NULL == (fp = calloc(A->length + B->length + 3, sizeof (*fp))))
+		return -1;		
 		
-	p = -1;	
+	/* fp[-(M+1)..(N+1)] := -1 */		
+	for (k = 0; k < A->length + B->length + 3; k++)
+		fp[k] = -1;
+
+	DEBUG("delta=%d M=%d N=%d fp.len=%d zero=%d zero_delta=%d\n", delta, A->length, B->length, (A->length + B->length + 3), zero, zero_delta);		
+	
+	p = -1;
 	do {
 		p++;
 		for (k = zero -p; k < zero_delta; k++) {
-			fp[k] = snake(k -zero, max(fp[k-1] + 1, fp[k+1]), A, B);
+			fp[k] = snake(k, fp, A, B);
 			DEBUG("1st fp[%d]=%d p=%d \n", k, fp[k], p);		
 		}
 		for (k = zero_delta + p; zero_delta < k; k--) {
-			fp[k] = snake(k -zero, max(fp[k-1] + 1, fp[k+1]), A, B);
+			fp[k] = snake(k, fp, A, B);
 			DEBUG("2nd fp[%d]=%d p=%d \n", k, fp[k], p);		
 		}
-		fp[zero_delta] = snake(delta, max(fp[zero_delta-1] + 1, fp[zero_delta+1]), A, B);
+		fp[zero_delta] = snake(zero_delta, fp, A, B);
 		DEBUG("3rd fp[%d]=%d p=%d \n", zero_delta, fp[zero_delta], p);		
 	} while (fp[zero_delta] != B->length);
 
 	free(fp);
 
-	INFO("delta=%d p=%d M=%d N=%d \n", delta, p, A->length, B->length);		
+	INFO("dist=%d delta=%d p=%d M=%d N=%d \n", delta + 2 * p, delta, p, A->length, B->length);		
 
 	return delta + 2 * p;
 }
@@ -303,7 +316,7 @@ main(int argc, char **argv)
 		error(argv[optind+1]);
 		return EXIT_ERROR;
 	}
-		
+
 	ch = edit_distance(lines1, lines2);
 	(void) printf("%d\n", ch);
 

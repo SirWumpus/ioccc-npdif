@@ -25,9 +25,11 @@
 #endif
 
 typedef struct edit {
-	int a;			/* Index into A. */
-	int b;			/* Index into B. */
-	int c;			/* Length of common segment (distance to next edit). */
+	int op;			/* 1 = insert, 0 = delete */
+	int x;			/* Index into A. */
+	int y;			/* Index into B. */
+	long a;			/* seek into A */
+	long b;			/* seek into B */
 	struct edit *next;
 } Edit;
 
@@ -55,10 +57,10 @@ static int invert;
 #define EXIT_ERROR		2
 #define error(x)		{ (void) fputs("dif: ", stderr); perror(x); }
 
-#define EPRINTF(f, ...)		(void) fprintf(stderr, f, __VA_ARGS__)
-#define INFO(f, ...)		{ if (0 < debug) EPRINTF(f, __VA_ARGS__); }
-#define DEBUG(f, ...)		{ if (1 < debug) EPRINTF(f, __VA_ARGS__); }
-#define DUMP(f, ...)		{ if (2 < debug) EPRINTF(f, __VA_ARGS__); }
+#define EPRINTF(...)		(void) fprintf(stderr, __VA_ARGS__)
+#define INFO(...)		{ if (0 < debug) EPRINTF(__VA_ARGS__); }
+#define DEBUG(...)		{ if (1 < debug) EPRINTF(__VA_ARGS__); }
+#define DUMP(...)		{ if (2 < debug) EPRINTF(__VA_ARGS__); }
 
 /**
  * FNV1a
@@ -183,6 +185,67 @@ file(char *u)
 }
 
 void
+echoline(FILE *fp)
+{
+	int ch;
+	while ((ch = fgetc(fp)) != EOF) {
+		(void) putchar(ch);						
+		if (ch == '\n')
+			break;
+	}
+}
+
+Edit *
+reverse_script(Edit *curr)
+{
+	Edit *a, *b;
+	
+	b = NULL;
+	while (curr != NULL) {
+		a = curr->next;
+		curr->next = b;
+		b = curr;
+		curr = a;
+	}
+	
+	return b;
+}
+
+void
+dump_script(FILE *fpA, FILE *fpB, Edit *curr)
+{
+	Edit *a, *b;
+
+	for (curr = reverse_script(curr); curr != NULL; ) {
+		/* Determine range. */
+		b = curr;
+		do {
+			a = b;
+			b = b->next;
+		} while (b != NULL && a->y+1 == b->y);
+
+		if (curr->op) {
+			printf("%da%d,%d\n", curr->x, curr->y, a->y);		
+			(void) fseek(fpB, curr->b, SEEK_SET);
+		} else {
+			printf("%d,%dd%d\n", curr->y, a->y, curr->x);
+			(void) fseek(fpA, curr->a, SEEK_SET);
+			do {
+				(void) printf("< ");
+				echoline(fpA);
+				curr = curr->next;
+			} while (curr != b);			
+		}
+		
+		while (curr != NULL && curr->x == a->x) {
+			printf("> ");
+			echoline(fpB);
+			curr = curr->next;			
+		}
+	}	
+}
+
+void
 snake(int zero_k, Vertex *fp, HashArray *A, HashArray *B)
 {
 	int k = zero_k - A->length - 1;
@@ -192,12 +255,14 @@ snake(int zero_k, Vertex *fp, HashArray *A, HashArray *B)
 	Vertex v = fp[zero_k+1];
 	
 	/* max(fp[zero_k-1] + 1, fp[zero_k+1]) */
-	int y;
+	int y, op;
 	Edit *prev;
-	if (v.y <= h.y+1) {
+	if (v.y < h.y+1) {
+		op = 1;
 		y = h.y+1;
 		prev = h.edit;
 	} else {
+		op = 0;
 		y = v.y;
 		prev = v.edit;
 	}
@@ -212,34 +277,43 @@ snake(int zero_k, Vertex *fp, HashArray *A, HashArray *B)
 	int x = y - k;
 	DUMP("snake in k=%d y=%d x=%d\n", k, y, x);
 
+	if (y == 0 && x == 0) {
+//		DUMP("y == x == 0\n");
+//		fp[zero_k].edit	= prev;
+	} else {
+		Edit *edit = malloc(sizeof (*edit));	
+		edit->x = x;
+		edit->y = y;		
+		edit->op = op ^ invert;
+		edit->next = prev;
+		edit->a = A->base[edit->x].seek;
+		edit->b = B->base[edit->y].seek;
+		
+		if (invert) {
+			long c = edit->a;
+			edit->a = edit->b;
+			edit->b = c;
+		}
+		
+		fp[zero_k].edit = edit;
+		DUMP("edit op=%d x=%d y=%d\n", edit->op, edit->x, edit->y);
+	}
+
 	/* The algorithm assumes 1-based indexing, A[1..M] and B[1..N]. 
 	 * NOTE no hash collision checking yet.
 	 */
-	int n = 0;
 	while (x < A->length && y < B->length && A->base[x+1].hash == B->base[y+1].hash) {
 		x++;
 		y++;
-		n++;
 	}
 	
 	fp[zero_k].y = y;
-	if (n == 0) {
-		/* We didn't slide along diagonal k. */
-		fp[zero_k].edit = prev;
-	} else {
-		Edit *edit = malloc(sizeof (*prev));
-		edit->next = prev;
-		edit->a = x - n;
-		edit->b = y - n;
-		edit->c = n;
-		fp[zero_k].edit = edit;
-	}
 	
 	DUMP("snake out k=%d y=%d x=%d\n", k, y, x);
 }
 
 int
-edit_distance(HashArray *A, HashArray *B)
+edit_distance(FILE *fpA, FILE *fpB, HashArray *A, HashArray *B)
 {
 	Vertex *fp;
 	int k, p, delta, zero, zero_delta;
@@ -286,45 +360,19 @@ edit_distance(HashArray *A, HashArray *B)
 		DEBUG("3rd fp[%d]=%d p=%d \n", zero_delta, fp[zero_delta].y, p);		
 	} while (fp[zero_delta].y != B->length);
 
+	dump_script(fpA, fpB, fp[zero_delta].edit);
 	free(fp);
 
-	INFO("dist=%d delta=%d p=%d M=%d N=%d \n", delta + 2 * p, delta, p, A->length, B->length);		
+	DEBUG("dist=%d delta=%d p=%d M=%d N=%d \n", delta + 2 * p, delta, p, A->length, B->length);		
 
 	return delta + 2 * p;
-}
-
-void
-echoline(FILE *fp)
-{
-	int ch;
-	while ((ch = fgetc(fp)) != EOF) {
-		(void) putchar(ch);						
-		if (ch == '\n')
-			break;
-	}
-}
-
-Edit *
-reverse_script(Edit *curr)
-{
-	Edit *a, *b;
-	
-	b = NULL;
-	while (curr != NULL) {
-		a = curr->next;
-		curr->next = b;
-		b = curr;
-		curr = a;
-	}
-	
-	return b;
 }
 
 int
 main(int argc, char **argv)
 {
 	int ch;
-	FILE *fp1, *fp2;
+	FILE *fpA, *fpB;
 	HashArray *A, *B;
 
 	while ((ch = getopt(argc, argv, "v")) != -1) {
@@ -347,34 +395,37 @@ main(int argc, char **argv)
 	if (0 == strcmp(argv[optind], argv[optind+1]))
 		return EXIT_SUCCESS;
 
-	if (NULL == (fp1 = file(argv[optind])))
+	if (NULL == (fpA = file(argv[optind])))
 		return EXIT_ERROR;
-	if (NULL == (fp2 = file(argv[optind+1])))
+	if (NULL == (fpB = file(argv[optind+1])))
 		return EXIT_ERROR;
 
-	if (NULL == (A = hash_file(fp1))) {
+	if (NULL == (A = hash_file(fpA))) {
 		error(argv[optind]);
 		return EXIT_ERROR;
 	}
-	if (NULL == (B = hash_file(fp2))) {
+	if (NULL == (B = hash_file(fpB))) {
 		error(argv[optind+1]);
 		return EXIT_ERROR;
 	}
 
-	ch = edit_distance(A, B);
-	(void) printf("%d\n", ch);
+	ch = edit_distance(fpA, fpB, A, B);
+	if (0 < debug) printf("%d\n", ch);
 
 	free(A);
 	free(B);
 
-	if (ferror(fp1)) {
+	if (ferror(fpA)) {
 		error(argv[optind]);
 		return EXIT_ERROR;
 	}
-	if (ferror(fp2)) {
+	fclose(fpA);
+
+	if (ferror(fpB)) {
 		error(argv[optind+1]);
 		return EXIT_ERROR;
-	}
+	}	
+	fclose(fpB);
 
 	return EXIT_SUCCESS;
 }

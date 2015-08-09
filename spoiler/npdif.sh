@@ -14,7 +14,7 @@ function distance
 /g' >tmp$$.B
 
 	echo "<<< A='$A' B='$B' $@"
-	typeset dist=$(./npdif $@ tmp$$.A tmp$$.B | tr -d '\r')
+	typeset dist=$(./npdif -v $@ tmp$$.A tmp$$.B | tr -d '\r')
 
 	printf '>>> got=%d expect=%d ' "$dist" "$expect"
 	rm tmp$$.A tmp$$.B

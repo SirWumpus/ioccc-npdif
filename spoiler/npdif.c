@@ -16,24 +16,25 @@
 
 #define FAST
 
-#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include <unistd.h>
 
 #ifndef INIT_SIZE
 #define INIT_SIZE		32	/* Power of two. */
 #endif
 
-typedef struct action {
-	int op;			/* 1 insert, 0 delete */
-	int line1;
-	int line2;
-	long seek1;
-	long seek2;
-	struct action *next;
+typedef struct edit {
+	int a;			/* Index into A. */
+	int b;			/* Index into B. */
+	int c;			/* Length of common segment (distance to next edit). */
+	struct edit *next;
 } Edit;
+
+typedef struct {
+	int y;
+	Edit *edit;
+} Vertex;
 	
 typedef unsigned long Hash;
 
@@ -50,7 +51,6 @@ typedef struct {
 
 static int debug;
 static int invert;
-static Edit **script;
 
 #define EXIT_ERROR		2
 #define error(x)		{ (void) fputs("dif: ", stderr); perror(x); }
@@ -90,10 +90,7 @@ hash_string(unsigned char *x)
 }
 
 /*
- * Expand hash table.  The hash table holds the hashes for
- * both files, file1 is all even indexes and file2 all odd.
- * Index 0 holds the current size of the table.  Return 1
- * for failure to expand the table and 0 for success.
+ * Expand hash table.  
  */
 HashArray *
 hash_expand(HashArray *orig)
@@ -107,7 +104,7 @@ hash_expand(HashArray *orig)
 	size = (orig == NULL ? INIT_SIZE : orig->size << 1);
 
 	if (NULL == (copy = realloc(orig, sizeof (*orig) + size * sizeof (orig->base)))) {
-		(void) fputs("dif: No memory.\n", stderr);
+		(void) fputs("No memory.\n", stderr);
 		free(orig);
 		return NULL;
 	}
@@ -124,9 +121,7 @@ hash_expand(HashArray *orig)
  *	File to scan and hash by line.
  *
  * @return 
- *	Pointer to an array of hashes, where hash[0] is
- *	the length of the array and hash[1] is hash of the
- *	first line.
+ *	Pointer to an 1-based array of hashed lines.
  */
 HashArray *
 hash_file(FILE *fp)
@@ -187,17 +182,25 @@ file(char *u)
 	return fp;
 }
 
-int
-snake(int zero_k, int *fp, HashArray *A, HashArray *B)
+void
+snake(int zero_k, Vertex *fp, HashArray *A, HashArray *B)
 {
 	int k = zero_k - A->length - 1;
 	
 	/* fp[] holds the furthest y along diagonal k. */
-	int h = fp[zero_k-1];
-	int v = fp[zero_k+1];
+	Vertex h = fp[zero_k-1];
+	Vertex v = fp[zero_k+1];
 	
 	/* max(fp[zero_k-1] + 1, fp[zero_k+1]) */
-	int y =(v <= h+1) ? h+1 : v;
+	int y;
+	Edit *prev;
+	if (v.y <= h.y+1) {
+		y = h.y+1;
+		prev = h.edit;
+	} else {
+		y = v.y;
+		prev = v.edit;
+	}
 
 	/* Diagonal k = y - x of matrix [-(M+1), (N-1)], where
 	 * row 0 and column 0 are initialised with sentenial -1.
@@ -212,20 +215,34 @@ snake(int zero_k, int *fp, HashArray *A, HashArray *B)
 	/* The algorithm assumes 1-based indexing, A[1..M] and B[1..N]. 
 	 * NOTE no hash collision checking yet.
 	 */
+	int n = 0;
 	while (x < A->length && y < B->length && A->base[x+1].hash == B->base[y+1].hash) {
 		x++;
 		y++;
+		n++;
 	}
-
-	DUMP("snake out k=%d y=%d x=%d\n", k, y, x);
 	
-	return y;
+	fp[zero_k].y = y;
+	if (n == 0) {
+		/* We didn't slide along diagonal k. */
+		fp[zero_k].edit = prev;
+	} else {
+		Edit *edit = malloc(sizeof (*prev));
+		edit->next = prev;
+		edit->a = x - n;
+		edit->b = y - n;
+		edit->c = n;
+		fp[zero_k].edit = edit;
+	}
+	
+	DUMP("snake out k=%d y=%d x=%d\n", k, y, x);
 }
 
 int
 edit_distance(HashArray *A, HashArray *B)
 {
-	int k, p, delta, *fp, zero, zero_delta;
+	Vertex *fp;
+	int k, p, delta, zero, zero_delta;
 
 	/* Swap A and B if N < M.  The edit distance will be the
 	 * same, but edit script operations will be reversed.
@@ -250,24 +267,24 @@ edit_distance(HashArray *A, HashArray *B)
 		
 	/* fp[-(M+1)..(N+1)] := -1 */		
 	for (k = 0; k < A->length + B->length + 3; k++)
-		fp[k] = -1;
+		fp[k].y = -1;
 
 	DEBUG("delta=%d M=%d N=%d fp.len=%d zero=%d zero_delta=%d\n", delta, A->length, B->length, (A->length + B->length + 3), zero, zero_delta);		
-	
+
 	p = -1;
 	do {
 		p++;
 		for (k = zero -p; k < zero_delta; k++) {
-			fp[k] = snake(k, fp, A, B);
-			DEBUG("1st fp[%d]=%d p=%d \n", k, fp[k], p);		
+			snake(k, fp, A, B);
+			DEBUG("1st fp[%d]=%d p=%d \n", k, fp[k].y, p);		
 		}
 		for (k = zero_delta + p; zero_delta < k; k--) {
-			fp[k] = snake(k, fp, A, B);
-			DEBUG("2nd fp[%d]=%d p=%d \n", k, fp[k], p);		
+			snake(k, fp, A, B);
+			DEBUG("2nd fp[%d]=%d p=%d \n", k, fp[k].y, p);		
 		}
-		fp[zero_delta] = snake(zero_delta, fp, A, B);
-		DEBUG("3rd fp[%d]=%d p=%d \n", zero_delta, fp[zero_delta], p);		
-	} while (fp[zero_delta] != B->length);
+		snake(zero_delta, fp, A, B);
+		DEBUG("3rd fp[%d]=%d p=%d \n", zero_delta, fp[zero_delta].y, p);		
+	} while (fp[zero_delta].y != B->length);
 
 	free(fp);
 
@@ -276,12 +293,39 @@ edit_distance(HashArray *A, HashArray *B)
 	return delta + 2 * p;
 }
 
+void
+echoline(FILE *fp)
+{
+	int ch;
+	while ((ch = fgetc(fp)) != EOF) {
+		(void) putchar(ch);						
+		if (ch == '\n')
+			break;
+	}
+}
+
+Edit *
+reverse_script(Edit *curr)
+{
+	Edit *a, *b;
+	
+	b = NULL;
+	while (curr != NULL) {
+		a = curr->next;
+		curr->next = b;
+		b = curr;
+		curr = a;
+	}
+	
+	return b;
+}
+
 int
 main(int argc, char **argv)
 {
 	int ch;
 	FILE *fp1, *fp2;
-	HashArray *lines1, *lines2;
+	HashArray *A, *B;
 
 	while ((ch = getopt(argc, argv, "v")) != -1) {
 		switch (ch) {
@@ -308,20 +352,20 @@ main(int argc, char **argv)
 	if (NULL == (fp2 = file(argv[optind+1])))
 		return EXIT_ERROR;
 
-	if (NULL == (lines1 = hash_file(fp1))) {
+	if (NULL == (A = hash_file(fp1))) {
 		error(argv[optind]);
 		return EXIT_ERROR;
 	}
-	if (NULL == (lines2 = hash_file(fp2))) {
+	if (NULL == (B = hash_file(fp2))) {
 		error(argv[optind+1]);
 		return EXIT_ERROR;
 	}
 
-	ch = edit_distance(lines1, lines2);
+	ch = edit_distance(A, B);
 	(void) printf("%d\n", ch);
 
-	free(lines1);
-	free(lines2);
+	free(A);
+	free(B);
 
 	if (ferror(fp1)) {
 		error(argv[optind]);

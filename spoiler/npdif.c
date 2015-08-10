@@ -18,7 +18,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
+#include <string.h>
 
 #ifndef INIT_SIZE
 #define INIT_SIZE		32	/* Power of two. */
@@ -84,9 +84,9 @@ hash_string(unsigned char *x)
 #ifdef FAST
 		/* 0x01000193 */
 		h += (h<<1) + (h<<4) + (h<<7) + (h<<8) + (h<<24);
-#else
+#else /* FAST */
 		h *= 16777619UL;
-#endif		
+#endif /* FAST */
 	}
 
 	return h;
@@ -104,7 +104,7 @@ hash_expand(HashArray *orig)
 	/* Size does not account for the initial base element.
 	 * So you have 0 < size with a sentinel or 1 <= size.
 	 */
-	size = (orig == NULL ? INIT_SIZE : orig->size << 1);
+	size = orig != NULL ? orig->size << 1 : INIT_SIZE;
 
 	if (NULL == (copy = realloc(orig, sizeof (*orig) + size * sizeof (orig->base)))) {
 		(void) fputs("No memory.\n", stderr);
@@ -140,7 +140,7 @@ hash_file(FILE *fp)
 		if (hash->size <= lineno && (hash = hash_expand(hash)) == NULL)
 			break;
 		offset = ftell(fp);
-		if (fgets((char *)line, sizeof (line), fp) == NULL)
+		if (NULL == fgets((char *)line, sizeof (line), fp))
 			break;		
 		hash->base[lineno].hash = hash_string(line);
 		hash->base[lineno].seek = offset;
@@ -179,8 +179,7 @@ file(char *u)
 		}
 	}
 
-	if (NULL == fp)
-		error(u);
+	if (NULL == fp) error(u);
 
 	return fp;
 }
@@ -222,8 +221,9 @@ dump_script(FILE *fpA, FILE *fpB, Edit *curr)
 		b = curr;
 		do {
 			a = b;
+DEBUG("curr.x=%d curr.y=%d a.x=%d a.y=%d b.x=%d b.y=%d\n", curr->x, curr->y, a->x, a->y, b->x, b->y);			
 			b = b->next;
-		} while (b != NULL && a->y+1 == b->y);
+		} while (b != NULL && a->x == b->x);
 
 		if (curr->op) {
 			printf("%da%d,%d\n", curr->x, curr->y, a->y);		
@@ -278,10 +278,7 @@ snake(int zero_k, Vertex *fp, HashArray *A, HashArray *B)
 	int x = y - k;
 	DUMP("snake in k=%d y=%d x=%d\n", k, y, x);
 
-	if (y == 0 && x == 0) {
-//		DUMP("y == x == 0\n");
-//		fp[zero_k].edit	= prev;
-	} else {
+	if (0 < y || 0 < x) {
 		Edit *edit = malloc(sizeof (*edit));	
 		edit->x = x;
 		edit->y = y;		
@@ -344,7 +341,7 @@ edit_distance(FILE *fpA, FILE *fpB, HashArray *A, HashArray *B)
 	for (k = 0; k < A->length + B->length + 3; k++)
 		fp[k].y = -1;
 
-	DEBUG("delta=%d M=%d N=%d fp.len=%d zero=%d zero_delta=%d\n", delta, A->length, B->length, (A->length + B->length + 3), zero, zero_delta);		
+	DEBUG("delta=%d M=%zu N=%zu fp.len=%zu zero=%d zero_delta=%d\n", delta, A->length, B->length, (A->length + B->length + 3), zero, zero_delta);		
 
 	p = -1;
 	do {
@@ -365,7 +362,7 @@ edit_distance(FILE *fpA, FILE *fpB, HashArray *A, HashArray *B)
 		dump_script(fpA, fpB, fp[zero_delta].edit);
 	free(fp);
 
-	DEBUG("dist=%d delta=%d p=%d M=%d N=%d \n", delta + 2 * p, delta, p, A->length, B->length);		
+	DEBUG("dist=%d delta=%d p=%d M=%zu N=%zu \n", delta + 2 * p, delta, p, A->length, B->length);		
 
 	return delta + 2 * p;
 }
@@ -376,6 +373,9 @@ main(int argc, char **argv)
 	int ch;
 	FILE *fpA, *fpB;
 	HashArray *A, *B;
+
+#ifndef NDEBUG
+#include <getopt.h>
 
 	while ((ch = getopt(argc, argv, "dv")) != -1) {
 		switch (ch) {
@@ -395,10 +395,7 @@ main(int argc, char **argv)
 		(void) fprintf(stderr, "usage: %s [-dv] file1 file2\n", argv[0]);
 		return EXIT_ERROR;
 	}
-
-	/* If file names are identical, assume identity result. */
-	if (0 == strcmp(argv[optind], argv[optind+1]))
-		return EXIT_SUCCESS;
+#endif /* NDEBUG */
 
 	if (NULL == (fpA = file(argv[optind])))
 		return EXIT_ERROR;
@@ -415,8 +412,7 @@ main(int argc, char **argv)
 	}
 
 	ch = edit_distance(fpA, fpB, A, B);
-	if (print_distance)
-		printf("%d\n", ch);
+	if (print_distance) printf("%d\n", ch);
 
 	free(A);
 	free(B);
@@ -433,5 +429,5 @@ main(int argc, char **argv)
 	}	
 	fclose(fpB);
 
-	return EXIT_SUCCESS;
+	return ch != 0;
 }

@@ -15,7 +15,8 @@ core.*
 .gdbinit
 
 npdif
-ioccc
-iocccsize
-
+ioccc*
+*Copy*
+prog
+prog.c
 

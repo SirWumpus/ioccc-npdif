@@ -30,6 +30,9 @@
 	IEEE Std 1003.1, 2013 Edition
 	http://pubs.opengroup.org/onlinepubs/9699919799/utilities/diff.html
 
+[Erik]	Erik Erlandson, A Bi-directional Variation of the O(NP) Edit Distance Algorithm
+	http://erikerlandson.github.io/blog/2014/02/20/a-bi-directional-variation-of-the-o-np-edit-distance-algorithm/
+
 [SVN]	Subversion Diff
 	https://subversion.apache.org/
 

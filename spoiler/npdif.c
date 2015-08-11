@@ -252,15 +252,13 @@ DEBUG("curr.x=%d curr.y=%d a.x=%d a.y=%d b.x=%d b.y=%d\n", curr->x, curr->y, a->
 }
 
 void
-snake(int zero_k, Vertex *fp, HashArray *A, HashArray *B)
+snake(int k, Vertex *fp, HashArray *A, HashArray *B)
 {
-	int k = zero_k - A->length - 1;
-	
 	/* fp[] holds the furthest y along diagonal k. */
-	Vertex h = fp[zero_k-1];
-	Vertex v = fp[zero_k+1];
+	Vertex h = fp[k-1];
+	Vertex v = fp[k+1];
 	
-	/* max(fp[zero_k-1] + 1, fp[zero_k+1]) */
+	/* max(fp[k-1] + 1, fp[k+1]) */
 	int y, op;
 	Edit *prev;
 	if (v.y < h.y+1) {
@@ -298,7 +296,7 @@ snake(int zero_k, Vertex *fp, HashArray *A, HashArray *B)
 			edit->b = c;
 		}
 		
-		fp[zero_k].edit = edit;
+		fp[k].edit = edit;
 		DUMP("edit op=%d x=%d y=%d\n", edit->op, edit->x, edit->y);
 	}
 
@@ -310,7 +308,7 @@ snake(int zero_k, Vertex *fp, HashArray *A, HashArray *B)
 		y++;
 	}
 	
-	fp[zero_k].y = y;
+	fp[k].y = y;
 	
 	DUMP("snake out k=%d y=%d x=%d\n", k, y, x);
 }
@@ -318,8 +316,8 @@ snake(int zero_k, Vertex *fp, HashArray *A, HashArray *B)
 int
 edit_distance(FILE *fpA, FILE *fpB, HashArray *A, HashArray *B)
 {
-	Vertex *fp;
-	int k, p, delta, zero, zero_delta;
+	int k, p, delta;
+	Vertex *fp, *fp_base;
 
 	/* Swap A and B if N < M.  The edit distance will be the
 	 * same, but edit script operations will be reversed.
@@ -329,47 +327,45 @@ edit_distance(FILE *fpA, FILE *fpB, HashArray *A, HashArray *B)
 		A = B;
 		B = tmp;
 		invert = 1;
+		DEBUG("swap A & B\n");
 	}
 
 	/* delta = N - M where A[1..M], B[1..N], and N >= M. */
 	delta = B->length - A->length;
 	
-	/* Axis shift from -(M+1)..(N+1) => 0 .. (M+1) .. (M+N+3). */
-	zero = A->length + 1;
-	zero_delta = zero + delta;
-
 	/* From -(M+1).. 0 .. (N+1); up & lower sentinels and zero. */
-	if (NULL == (fp = calloc(A->length + B->length + 3, sizeof (*fp))))
+	if (NULL == (fp_base = calloc(A->length + B->length + 3, sizeof (*fp))))
 		return -1;		
 		
 	/* fp[-(M+1)..(N+1)] := -1 */		
 	for (k = 0; k < A->length + B->length + 3; k++)
-		fp[k].y = -1;
-
-	DEBUG("delta=%d M=%zu N=%zu fp.len=%zu zero=%d zero_delta=%d\n", delta, A->length, B->length, (A->length + B->length + 3), zero, zero_delta);		
+		fp_base[k].y = -1;
+	
+	/* Shift origin to (M+1). */
+	fp = fp_base + A->length + 1;
+	
+	DEBUG("delta=%d M=%zu N=%zu fp.len=%zu\n", delta, A->length, B->length, (A->length + B->length + 3));		
 
 	p = -1;
 	do {
 		p++;
-		for (k = zero - p; k < zero_delta; k++) {
+		for (k = -p; k < delta; k++) {
 			snake(k, fp, A, B);
 			DEBUG("1st fp[%d]=%d p=%d \n", k, fp[k].y, p);		
 		}
-		for (k = zero_delta + p; zero_delta < k; k--) {
+		for (k = delta + p; delta <= k; k--) {
 			snake(k, fp, A, B);
 			DEBUG("2nd fp[%d]=%d p=%d \n", k, fp[k].y, p);		
 		}
-		snake(zero_delta, fp, A, B);
-		DEBUG("3rd fp[%d]=%d p=%d \n", zero_delta, fp[zero_delta].y, p);		
-	} while (fp[zero_delta].y != B->length);
+	} while (fp[delta].y != B->length);
 
 	if (!print_distance)
-		dump_script(fpA, fpB, fp[zero_delta].edit);
-	free(fp);
+		dump_script(fpA, fpB, fp[delta].edit);
+	free(fp_base);
 
-	DEBUG("dist=%d delta=%d p=%d M=%zu N=%zu \n", delta + 2 * p, delta, p, A->length, B->length);		
+	DEBUG("dist=%d delta=%d p=%d M=%zu N=%zu \n", (delta < 0 ? -delta : delta) + 2 * p, delta, p, A->length, B->length);		
 
-	return delta + 2 * p;
+	return (delta < 0 ? -delta : delta) + 2 * p;
 }
 
 int

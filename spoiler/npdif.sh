@@ -54,7 +54,9 @@ echo "===="
 echo "===="
 ./npdif ABCDE.tmp 123.tmp
 
-echo "===="
 # Note that npdif and diff have same edit distance,
 # but differ in the output.
+echo "===="
+./npdif CBABAC.tmp ABCABBA.tmp
+echo "===="
 ./npdif ABCABBA.tmp CBABAC.tmp

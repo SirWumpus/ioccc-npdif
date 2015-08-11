@@ -226,22 +226,27 @@ DEBUG("curr.x=%d curr.y=%d a.x=%d a.y=%d b.x=%d b.y=%d\n", curr->x, curr->y, a->
 		} while (b != NULL && a->x == b->x);
 
 		if (curr->op) {
-			printf("%da%d,%d\n", curr->x, curr->y, a->y);		
+			if (curr->y < a->y)
+				(void) printf("%da%d,%d\n", curr->x, curr->y, a->y);
+			else
+				(void) printf("%da%d\n", curr->x, curr->y);
 			(void) fseek(fpB, curr->b, SEEK_SET);
+		
+			for ( ; curr != b; curr = curr->next) {
+				(void) printf("> ");
+				echoline(fpB);
+			}
 		} else {
-			printf("%d,%dd%d\n", curr->y, a->y, curr->x);
+			if (curr->y < a->y)
+				printf("%d,%dd%d\n", curr->y, a->y, curr->x);
+			else
+				printf("%dd%d\n", curr->y, curr->x);
 			(void) fseek(fpA, curr->a, SEEK_SET);
-			do {
+
+			for ( ; curr != b; curr = curr->next) {
 				(void) printf("< ");
 				echoline(fpA);
-				curr = curr->next;
-			} while (curr != b);			
-		}
-		
-		while (curr != NULL && curr->x == a->x) {
-			printf("> ");
-			echoline(fpB);
-			curr = curr->next;			
+			}
 		}
 	}	
 }
@@ -346,7 +351,7 @@ edit_distance(FILE *fpA, FILE *fpB, HashArray *A, HashArray *B)
 	p = -1;
 	do {
 		p++;
-		for (k = zero -p; k < zero_delta; k++) {
+		for (k = zero - p; k < zero_delta; k++) {
 			snake(k, fp, A, B);
 			DEBUG("1st fp[%d]=%d p=%d \n", k, fp[k].y, p);		
 		}
@@ -429,5 +434,5 @@ main(int argc, char **argv)
 	}	
 	fclose(fpB);
 
-	return ch != 0;
+	return 0 < ch;
 }

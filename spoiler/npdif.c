@@ -217,15 +217,14 @@ dump_script(FILE *fpA, FILE *fpB, Edit *curr)
 	Edit *a, *b;
 
 	for (curr = reverse_script(curr); curr != NULL; ) {
-		/* Determine range. */
 		b = curr;
-		do {
-			a = b;
-DEBUG("curr.x=%d curr.y=%d a.x=%d a.y=%d b.x=%d b.y=%d\n", curr->x, curr->y, a->x, a->y, b->x, b->y);			
-			b = b->next;
-		} while (b != NULL && a->x == b->x);
-
 		if (curr->op) {
+			do {
+				a = b;
+DEBUG("curr.x=%d curr.y=%d a.x=%d a.y=%d b.x=%d b.y=%d\n", curr->x, curr->y, a->x, a->y, b->x, b->y);			
+				b = b->next;
+			} while (b != NULL && b->op && a->y+1 == b->y);
+
 			if (curr->y < a->y)
 				(void) printf("%da%d,%d\n", curr->x, curr->y, a->y);
 			else
@@ -237,10 +236,16 @@ DEBUG("curr.x=%d curr.y=%d a.x=%d a.y=%d b.x=%d b.y=%d\n", curr->x, curr->y, a->
 				echoline(fpB);
 			}
 		} else {
-			if (curr->y < a->y)
-				printf("%d,%dd%d\n", curr->y, a->y, curr->x);
+			do {
+				a = b;
+DEBUG("curr.x=%d curr.y=%d a.x=%d a.y=%d b.x=%d b.y=%d\n", curr->x, curr->y, a->x, a->y, b->x, b->y);			
+				b = b->next;
+			} while (b != NULL && !b->op && a->x+1 == b->x);
+
+			if (curr->x < a->x)
+				(void) printf("%d,%dd%d\n", curr->x, a->x, curr->y);
 			else
-				printf("%dd%d\n", curr->y, curr->x);
+				(void) printf("%dd%d\n", curr->x, curr->y);
 			(void) fseek(fpA, curr->a, SEEK_SET);
 
 			for ( ; curr != b; curr = curr->next) {
@@ -285,15 +290,20 @@ snake(int k, Vertex *fp, HashArray *A, HashArray *B)
 		Edit *edit = malloc(sizeof (*edit));	
 		edit->x = x;
 		edit->y = y;		
-		edit->op = op ^ invert;
 		edit->next = prev;
-		edit->a = A->base[edit->x].seek;
-		edit->b = B->base[edit->y].seek;
+		edit->op = op ^ invert;
+		edit->a = A->base[x].seek;
+		edit->b = B->base[y].seek;
 		
 		if (invert) {
+			/* Swap seek offset to match the open files. */
 			long c = edit->a;
 			edit->a = edit->b;
 			edit->b = c;
+
+			/* Likewise swap line numbers to match seeks. */
+			edit->x = y;
+			edit->y = x;
 		}
 		
 		fp[k].edit = edit;

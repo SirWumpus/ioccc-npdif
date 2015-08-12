@@ -1,6 +1,7 @@
 #!/bin/ksh
 
 flags="$@"
+PROG="./npdif"
 
 function distance
 {
@@ -14,7 +15,7 @@ function distance
 /g' >$B.tmp
 
 	echo "<<< A='$A' B='$B' $@"
-	typeset dist=$(./npdif -d $@ $A.tmp $B.tmp | tr -d '\r')
+	typeset dist=$($PROG -d $@ $A.tmp $B.tmp | tr -d '\r')
 
 	printf '>>> got=%d expect=%d ' "$dist" "$expect"
 
@@ -24,6 +25,58 @@ function distance
 	fi
 
 	echo -OK-
+	return 0
+}
+
+function dif
+{
+	typeset A="$1"; shift
+	typeset B="$1"; shift
+	typeset expect="$1"; shift
+
+	echo "==== $A $B"
+	$PROG $A $B | tee patch.tmp
+	typeset ex=$?
+
+	if [ "$expect" -eq 0 ]; then
+		printf "got=%d expect=%d " $ex $expect
+		if [ $expect -ne $ex ]; then
+			echo FAIL
+			return 1
+		fi
+		echo -OK-
+		return 0
+	fi
+
+	printf "forward patch "
+	cp $A copy.tmp
+	if ! patch -s copy.tmp patch.tmp ; then
+		echo FAIL
+		return 1
+	fi
+	echo -OK-
+
+	printf "forward compare "
+	if ! cmp $B copy.tmp ; then
+		echo FAIL
+		return 1
+	fi
+	echo -OK-
+
+	printf "reverse patch "
+	if ! patch -R -s copy.tmp patch.tmp ; then
+		echo FAIL
+		return 1
+	fi
+	echo -OK-
+
+	printf "reverse compare "
+	if ! cmp $A copy.tmp ; then
+		echo FAIL
+		return 1
+	fi
+	echo -OK-
+
 	return 0
 }
 
@@ -43,20 +96,18 @@ distance "ABCDEFGHIJK" "ABCEFGIJKDEFGHIJK" 6 $flags
 distance "ABCABBA" "CBABAC" 5 $flags
 distance "ACEBDABBABED" "ACBDEACBED" 6 $flags
 
-echo "===="
-./npdif 1.tmp 1.tmp
-echo "===="
-./npdif ABCD.tmp ACDBECFD.tmp
-echo "===="
-./npdif ACDBECFD.tmp ABCD.tmp
-echo "===="
-./npdif 123.tmp ABCDE.tmp
-echo "===="
-./npdif ABCDE.tmp 123.tmp
+touch EMPTY.tmp
+dif 1.tmp 1.tmp 0
+dif EMPTY.tmp 123.tmp 1
+dif 123.tmp EMPTY.tmp 1
+dif ABCD.tmp ACDBECFD.tmp 1
+dif ACDBECFD.tmp ABCD.tmp 1
+dif 123.tmp ABCDE.tmp 1
+dif ABCDE.tmp 123.tmp 1
 
-# Note that npdif and diff have same edit distance,
+# Note that npdif and diff(1) have same edit distance,
 # but differ in the output.
-echo "===="
-./npdif CBABAC.tmp ABCABBA.tmp
-echo "===="
-./npdif ABCABBA.tmp CBABAC.tmp
+dif CBABAC.tmp ABCABBA.tmp 1
+dif ABCABBA.tmp CBABAC.tmp 1
+
+echo DONE

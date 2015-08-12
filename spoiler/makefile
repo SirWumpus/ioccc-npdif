@@ -33,7 +33,7 @@ all: build
 build: ${PACKAGE}$E
 
 clean:
-	-rm ${PACKAGE}.i ${PACKAGE}$O ${PACKAGE}$E tmp* *.tmp *.core 2>/dev/null
+	-rm ${PACKAGE}.i ${PACKAGE}$O ${PACKAGE}$E tmp* *.tmp *.orig *.core 2>/dev/null
 
 distclean: clean
 	-rm ${IT}$E ../${PACKAGE}.c ../${PACKAGE}$E iocccsize$E 2>/dev/null

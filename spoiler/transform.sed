@@ -45,7 +45,7 @@ s/HashLine/h/g
 s/Hash/unsigned long/g
 s/Edit/E/g
 s/Vertex/X/g
-
+s/(void) //
 
 #R#s/[[:<:]]int[[:>:]]/I/g
 #R#s/[[:<:]]size_t[[:>:]]/I/g
@@ -100,12 +100,13 @@ s/'\\0'/0/g
 
 s/hash_expand/P/
 s/hash_file/F/
-s/hash_string/S/
+s/hash_string/V/
 s/echoline/W/
 s/reverse_script/R/
 s/dump_script/D/
 s/snake/K/
 s/edit_distance/T/
+s/[[:<:]]file[[:>:]]/O/
 
 #
 #  Variables

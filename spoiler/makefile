@@ -36,7 +36,8 @@ clean:
 	-rm ${PACKAGE}.i ${PACKAGE}$O ${PACKAGE}$E tmp* *.tmp *.orig *.core 2>/dev/null
 
 distclean: clean
-	-rm ${IT}$E ../${PACKAGE}.c ../${PACKAGE}$E iocccsize$E 2>/dev/null
+	-rm ${IT}$E ${top_srcdir}/prog$E ${top_srcdir}/prog.c \
+	${top_srcdir}/prog-test.sh iocccsize$E 2>/dev/null
 
 install:
 	-mv ${PACKAGE}$E $(INSTALL)/bin
@@ -57,5 +58,9 @@ ${top_srcdir}/prog.c: ${PACKAGE}.c transform.sed ${IT}$E
 ${top_srcdir}/prog$E: ${top_srcdir}/prog.c
 	${CC} ${CFLAGS} ${LDFLAGS} -o$@ ${top_srcdir}/prog.c ${LIBS}
 
-entry : ${top_srcdir}/prog$E
+${top_srcdir}/prog-test.sh: npdif.sh
+	sed -e'/^PROG/s/npdif/prog/' npdif.sh >${top_srcdir}/prog-test.sh
+	chmod 755 ${top_srcdir}/prog-test.sh
+
+entry : ${top_srcdir}/prog$E ${top_srcdir}/prog-test.sh
 

@@ -12,6 +12,9 @@ core.*
 *.out
 *.tws
 *.sq3
+*.tmp
+*.orig
+*.rej
 .gdbinit
 
 npdif
@@ -19,4 +22,4 @@ ioccc*
 *Copy*
 prog
 prog.c
-
+prog-test.sh

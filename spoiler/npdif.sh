@@ -80,10 +80,6 @@ function dif
 	return 0
 }
 
-if ! make npdif ; then
-	exit 1
-fi
-
 distance "1" "1" 0 $flags
 distance "1" "A" 2 $flags
 distance "123" "ABCDE" 8 $flags

@@ -385,7 +385,6 @@ main(int argc, char **argv)
 	FILE *fpA, *fpB;
 	HashArray *A, *B;
 
-#ifndef NDEBUG
 #include <getopt.h>
 
 	while ((ch = getopt(argc, argv, "dv")) != -1) {
@@ -393,9 +392,11 @@ main(int argc, char **argv)
 		case 'd':
 			print_distance = 1;
 			break;
+#ifndef NDEBUG
 		case 'v':
 			debug++;
 			break;
+#endif /* NDEBUG */
 		default:
 			optind = argc;
 			break;
@@ -403,10 +404,9 @@ main(int argc, char **argv)
 	}
 
 	if (argc <= optind) {
-		(void) fprintf(stderr, "usage: %s [-dv] file1 file2\n", argv[0]);
+		(void) fprintf(stderr, "usage: %s [-d] file1 file2\n", argv[0]);
 		return EXIT_ERROR;
 	}
-#endif /* NDEBUG */
 
 	if (NULL == (fpA = file(argv[optind])))
 		return EXIT_ERROR;

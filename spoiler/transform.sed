@@ -115,7 +115,8 @@ s/[[:<:]]file[[:>:]]/O/
 #
 
 /debug/d
-/[[:<:]]print_distance[[:>:]]/d
+#/[[:<:]]print_distance[[:>:]]/d
+s/[[:<:]]print_distance[[:>:]]/q/
 
 s/argc/x/g
 s/argv/y/g
@@ -131,7 +132,7 @@ s/offset/o/g
 s/curr/K/g
 s/fpA/f/g
 s/fpB/g/g
-s/optind/1/g
+#s/optind/1/g
 s/[[:<:]]fp[[:>:]]/Q/g
 
 s/[[:<:]]edit[[:>:]]/e/g

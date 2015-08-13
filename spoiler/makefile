@@ -36,7 +36,7 @@ clean:
 	-rm ${PACKAGE}.i ${PACKAGE}$O ${PACKAGE}$E tmp* *.tmp *.orig *.core 2>/dev/null
 
 distclean: clean
-	-rm ${IT}$E ${top_srcdir}/prog$E ${top_srcdir}/prog.c \
+	-rm ${IT}$E makeholes$E ${top_srcdir}/prog$E ${top_srcdir}/prog.c \
 	${top_srcdir}/prog-test.sh iocccsize$E 2>/dev/null
 
 install:

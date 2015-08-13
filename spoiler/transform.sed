@@ -10,10 +10,14 @@
 /[[:<:]]DUMP/d
 
 /#define FAST/d
-/^#ifdef FAST/,/#else.*FAST/d
-/^#endif.*FAST/d
+#/^#ifdef FAST/,/#else.*FAST/d
+#/^#endif.*FAST/d
+/^#ifdef FAST/d
+/^#else.*FAST/,/^#endif.*FAST/d
 
 /^#define EXIT_ERROR/d
+/^#define FNV32_INIT/d
+/^#define FNV32_PRIME/d
 
 /^#ifndef INIT_SIZE/,/#endif/d
 
@@ -31,7 +35,10 @@ s/[[:blank:]]*\/\///
 s/EXIT_ERROR/2/
 s/EXIT_FAILURE/1/
 s/EXIT_SUCCESS/0/
-s/INIT_SIZE/32/g
+s/INIT_SIZE/65536/g
+s/FNV32_INIT/2166136261UL/
+s/FNV32_PRIME/16777619UL/
+
 
 #
 #  Types

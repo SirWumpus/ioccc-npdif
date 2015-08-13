@@ -19,10 +19,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <getopt.h>
 
 #ifndef INIT_SIZE
-#define INIT_SIZE		32	/* Power of two. */
+#define INIT_SIZE		8196	/* Power of two. */
 #endif
+
+#define FNV32_INIT		2166136261UL
+#define FNV32_PRIME		16777619UL
 
 typedef struct edit {
 	int op;			/* 1 = insert, 0 = delete */
@@ -77,7 +81,7 @@ static int print_distance;
 Hash
 hash_string(unsigned char *x)
 {
-	Hash h = 2166136261UL;
+	Hash h = FNV32_INIT;
 
 	while (*x != '\0') {
 		h ^= *x++;
@@ -85,7 +89,7 @@ hash_string(unsigned char *x)
 		/* 0x01000193 */
 		h += (h<<1) + (h<<4) + (h<<7) + (h<<8) + (h<<24);
 #else /* FAST */
-		h *= 16777619UL;
+		h *= FNV32_PRIME;
 #endif /* FAST */
 	}
 
@@ -178,6 +182,7 @@ file(char *u)
 			rewind(fp);
 		}
 	}
+//	(void) setvbuf(fp, NULL, _IOFBF, INIT_SIZE);     
 
 	if (NULL == fp) error(u);
 
@@ -375,7 +380,7 @@ edit_distance(FILE *fpA, FILE *fpB, HashArray *A, HashArray *B)
 
 	DEBUG("dist=%d delta=%d p=%d M=%zu N=%zu \n", (delta < 0 ? -delta : delta) + 2 * p, delta, p, A->length, B->length);		
 
-	return (delta < 0 ? -delta : delta) + 2 * p;
+	return delta + 2 * p;
 }
 
 int
@@ -384,8 +389,6 @@ main(int argc, char **argv)
 	int ch;
 	FILE *fpA, *fpB;
 	HashArray *A, *B;
-
-#include <getopt.h>
 
 	while ((ch = getopt(argc, argv, "dv")) != -1) {
 		switch (ch) {

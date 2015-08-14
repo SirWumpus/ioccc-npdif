@@ -50,7 +50,7 @@ function dif
 
 	printf "forward patch "
 	cp $A copy.tmp
-	if ! patch -s copy.tmp patch.tmp ; then
+	if ! patch -f -s copy.tmp patch.tmp ; then
 		echo FAIL
 		return 1
 	fi
@@ -64,7 +64,7 @@ function dif
 	echo -OK-
 
 	printf "reverse patch "
-	if ! patch -R -s copy.tmp patch.tmp ; then
+	if ! patch -R -f -s copy.tmp patch.tmp ; then
 		echo FAIL
 		return 1
 	fi

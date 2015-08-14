@@ -16,6 +16,7 @@
 
 #define FAST
 
+#include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -25,6 +26,17 @@
 #define INIT_SIZE		8196	/* Power of two. */
 #endif
 
+/**
+ * FNV1a
+ *
+ * https://en.wikipedia.org/wiki/Fowler%E2%80%93Noll%E2%80%93Vo_hash_function
+ * http://programmers.stackexchange.com/questions/49550/which-hashing-algorithm-is-best-for-uniqueness-and-speed
+ * http://www.isthe.com/chongo/tech/comp/fnv/index.html
+ *
+ *	Hash Size	Prime				Offset
+ *	32-bit		16777619	0x01000193	2166136261		0x811C9DC5
+ *	64-bit		1099511628211	0x100000001b3	14695981039346656037	0xCBF29CE34244AD25
+ */
 #define FNV32_INIT		2166136261UL
 #define FNV32_PRIME		16777619UL
 
@@ -58,43 +70,15 @@ typedef struct {
 static int debug;
 static int invert;
 static int print_distance;
+static HashArray *A, *B;
+static FILE *fpA, *fpB;
+static Vertex *fp, *fp_base;
 
 #define EXIT_ERROR		2
-#define error(x)		{ (void) fputs("dif: ", stderr); perror(x); }
 
-#define EPRINTF(...)		(void) fprintf(stderr, __VA_ARGS__)
-#define INFO(...)		{ if (0 < debug) EPRINTF(__VA_ARGS__); }
-#define DEBUG(...)		{ if (1 < debug) EPRINTF(__VA_ARGS__); }
-#define DUMP(...)		{ if (2 < debug) EPRINTF(__VA_ARGS__); }
-
-/**
- * FNV1a
- *
- * https://en.wikipedia.org/wiki/Fowler%E2%80%93Noll%E2%80%93Vo_hash_function
- * http://programmers.stackexchange.com/questions/49550/which-hashing-algorithm-is-best-for-uniqueness-and-speed
- * http://www.isthe.com/chongo/tech/comp/fnv/index.html
- *
- *	Hash Size	Prime				Offset
- *	32-bit		16777619	0x01000193	2166136261		0x811C9DC5
- *	64-bit		1099511628211	0x100000001b3	14695981039346656037	0xCBF29CE34244AD25
- */
-Hash
-hash_string(unsigned char *x)
-{
-	Hash h = FNV32_INIT;
-
-	while (*x != '\0') {
-		h ^= *x++;
-#ifdef FAST
-		/* 0x01000193 */
-		h += (h<<1) + (h<<4) + (h<<7) + (h<<8) + (h<<24);
-#else /* FAST */
-		h *= FNV32_PRIME;
-#endif /* FAST */
-	}
-
-	return h;
-}
+#define INFO(...)		{ if (0 < debug) warnx(__VA_ARGS__); }
+#define DEBUG(...)		{ if (1 < debug) warnx(__VA_ARGS__); }
+#define DUMP(...)		{ if (2 < debug) warnx(__VA_ARGS__); }
 
 /*
  * Expand hash table.  
@@ -110,11 +94,8 @@ hash_expand(HashArray *orig)
 	 */
 	size = orig != NULL ? orig->size << 1 : INIT_SIZE;
 
-	if (NULL == (copy = realloc(orig, sizeof (*orig) + size * sizeof (orig->base)))) {
-		(void) fputs("No memory.\n", stderr);
-		free(orig);
-		return NULL;
-	}
+	if (NULL == (copy = realloc(orig, sizeof (*orig) + size * sizeof (orig->base))))
+		err(EXIT_ERROR, NULL);
 
 	copy->size = size;
 	if (orig == NULL)
@@ -133,23 +114,39 @@ hash_expand(HashArray *orig)
 HashArray *
 hash_file(FILE *fp)
 {
+	Hash h;
 	HashArray *hash;
-	long lineno, offset;
-	unsigned char line[BUFSIZ];
+	long lineno, offset, n;
+	unsigned char buf[INIT_SIZE], *b;
 
 	hash = hash_expand(NULL);
 	
 	/* Assume 1-base array. */
-	for (lineno = 1; ; lineno++) {
-		if (hash->size <= lineno && (hash = hash_expand(hash)) == NULL)
-			break;
-		offset = ftell(fp);
-		if (NULL == fgets((char *)line, sizeof (line), fp))
-			break;		
-		hash->base[lineno].hash = hash_string(line);
-		hash->base[lineno].seek = offset;
+	lineno = 1;
+	offset = 0;
+	h = FNV32_INIT;
+	hash->base[lineno].seek = offset;
+	while (0 < (n = fread(buf, 1, sizeof (buf), fp))) {
+		b = buf;
+		while (0 < n--) {
+			h ^= *b;
+#ifdef FAST
+			/* 0x01000193 */
+			h += (h<<1) + (h<<4) + (h<<7) + (h<<8) + (h<<24);
+#else /* FAST */
+			h *= FNV32_PRIME;
+#endif /* FAST */
+			offset++;
+			if (*b++ == '\n') {
+				hash->base[lineno++].hash = h;
+				if (hash->size <= lineno)
+					hash = hash_expand(hash);
+				hash->base[lineno].seek = offset;
+				h = FNV32_INIT;
+			}
+		}
 	}
-
+				
 	/* Correct the length, base[1..length] inclusive. */	
 	hash->length = lineno-1;
 	rewind(fp);
@@ -182,9 +179,8 @@ file(char *u)
 			rewind(fp);
 		}
 	}
-//	(void) setvbuf(fp, NULL, _IOFBF, INIT_SIZE);     
 
-	if (NULL == fp) error(u);
+	if (NULL == fp) err(EXIT_ERROR, u);
 
 	return fp;
 }
@@ -217,7 +213,7 @@ reverse_script(Edit *curr)
 }
 
 void
-dump_script(FILE *fpA, FILE *fpB, Edit *curr)
+dump_script(Edit *curr)
 {
 	Edit *a, *b;
 
@@ -226,7 +222,7 @@ dump_script(FILE *fpA, FILE *fpB, Edit *curr)
 		if (curr->op) {
 			do {
 				a = b;
-DEBUG("curr.x=%d curr.y=%d a.x=%d a.y=%d b.x=%d b.y=%d\n", curr->x, curr->y, a->x, a->y, b->x, b->y);			
+DEBUG("curr.x=%d curr.y=%d a.x=%d a.y=%d b.x=%d b.y=%d", curr->x, curr->y, a->x, a->y, b->x, b->y);			
 				b = b->next;
 			} while (b != NULL && b->op && a->y+1 == b->y);
 
@@ -243,7 +239,7 @@ DEBUG("curr.x=%d curr.y=%d a.x=%d a.y=%d b.x=%d b.y=%d\n", curr->x, curr->y, a->
 		} else {
 			do {
 				a = b;
-DEBUG("curr.x=%d curr.y=%d a.x=%d a.y=%d b.x=%d b.y=%d\n", curr->x, curr->y, a->x, a->y, b->x, b->y);			
+DEBUG("curr.x=%d curr.y=%d a.x=%d a.y=%d b.x=%d b.y=%d", curr->x, curr->y, a->x, a->y, b->x, b->y);			
 				b = b->next;
 			} while (b != NULL && !b->op && a->x+1 == b->x);
 
@@ -262,7 +258,7 @@ DEBUG("curr.x=%d curr.y=%d a.x=%d a.y=%d b.x=%d b.y=%d\n", curr->x, curr->y, a->
 }
 
 void
-snake(int k, Vertex *fp, HashArray *A, HashArray *B)
+snake(int k)
 {
 	/* fp[] holds the furthest y along diagonal k. */
 	Vertex h = fp[k-1];
@@ -289,7 +285,7 @@ snake(int k, Vertex *fp, HashArray *A, HashArray *B)
 	 * x-vertical	= delete from A
 	 */
 	int x = y - k;
-	DUMP("snake in k=%d y=%d x=%d\n", k, y, x);
+	DUMP("snake in k=%d y=%d x=%d", k, y, x);
 
 	if (0 < y || 0 < x) {
 		Edit *edit = malloc(sizeof (*edit));	
@@ -312,7 +308,7 @@ snake(int k, Vertex *fp, HashArray *A, HashArray *B)
 		}
 		
 		fp[k].edit = edit;
-		DUMP("edit op=%d x=%d y=%d\n", edit->op, edit->x, edit->y);
+		DUMP("edit op=%d x=%d y=%d", edit->op, edit->x, edit->y);
 	}
 
 	/* The algorithm assumes 1-based indexing, A[1..M] and B[1..N]. 
@@ -325,14 +321,13 @@ snake(int k, Vertex *fp, HashArray *A, HashArray *B)
 	
 	fp[k].y = y;
 	
-	DUMP("snake out k=%d y=%d x=%d\n", k, y, x);
+	DUMP("snake out k=%d y=%d x=%d", k, y, x);
 }
 
 int
-edit_distance(FILE *fpA, FILE *fpB, HashArray *A, HashArray *B)
+edit_distance()
 {
 	int k, p, delta;
-	Vertex *fp, *fp_base;
 
 	/* Swap A and B if N < M.  The edit distance will be the
 	 * same, but edit script operations will be reversed.
@@ -342,7 +337,7 @@ edit_distance(FILE *fpA, FILE *fpB, HashArray *A, HashArray *B)
 		A = B;
 		B = tmp;
 		invert = 1;
-		DEBUG("swap A & B\n");
+		DEBUG("swap A & B");
 	}
 
 	/* delta = N - M where A[1..M], B[1..N], and N >= M. */
@@ -350,7 +345,7 @@ edit_distance(FILE *fpA, FILE *fpB, HashArray *A, HashArray *B)
 	
 	/* From -(M+1).. 0 .. (N+1); up & lower sentinels and zero. */
 	if (NULL == (fp_base = calloc(A->length + B->length + 3, sizeof (*fp))))
-		return -1;		
+		err(EXIT_ERROR, NULL);		
 		
 	/* fp[-(M+1)..(N+1)] := -1 */		
 	for (k = 0; k < A->length + B->length + 3; k++)
@@ -359,26 +354,26 @@ edit_distance(FILE *fpA, FILE *fpB, HashArray *A, HashArray *B)
 	/* Shift origin to (M+1). */
 	fp = fp_base + A->length + 1;
 	
-	DEBUG("delta=%d M=%zu N=%zu fp.len=%zu\n", delta, A->length, B->length, (A->length + B->length + 3));		
+	DEBUG("delta=%d M=%zu N=%zu fp.len=%zu", delta, A->length, B->length, (A->length + B->length + 3));		
 
 	p = -1;
 	do {
 		p++;
 		for (k = -p; k < delta; k++) {
-			snake(k, fp, A, B);
-			DEBUG("1st fp[%d]=%d p=%d \n", k, fp[k].y, p);		
+			snake(k);
+			DEBUG("1st fp[%d]=%d p=%d ", k, fp[k].y, p);		
 		}
 		for (k = delta + p; delta <= k; k--) {
-			snake(k, fp, A, B);
-			DEBUG("2nd fp[%d]=%d p=%d \n", k, fp[k].y, p);		
+			snake(k);
+			DEBUG("2nd fp[%d]=%d p=%d ", k, fp[k].y, p);		
 		}
 	} while (fp[delta].y != B->length);
 
 	if (!print_distance)
-		dump_script(fpA, fpB, fp[delta].edit);
+		dump_script(fp[delta].edit);
 	free(fp_base);
 
-	DEBUG("dist=%d delta=%d p=%d M=%zu N=%zu \n", (delta < 0 ? -delta : delta) + 2 * p, delta, p, A->length, B->length);		
+	DEBUG("dist=%d delta=%d p=%d M=%zu N=%zu ", (delta < 0 ? -delta : delta) + 2 * p, delta, p, A->length, B->length);		
 
 	return delta + 2 * p;
 }
@@ -387,8 +382,6 @@ int
 main(int argc, char **argv)
 {
 	int ch;
-	FILE *fpA, *fpB;
-	HashArray *A, *B;
 
 	while ((ch = getopt(argc, argv, "dv")) != -1) {
 		switch (ch) {
@@ -406,42 +399,32 @@ main(int argc, char **argv)
 		}
 	}
 
-	if (argc <= optind) {
-		(void) fprintf(stderr, "usage: %s [-d] file1 file2\n", argv[0]);
-		return EXIT_ERROR;
-	}
+	if (argc <= optind)
+		errx(EXIT_ERROR, "usage: %s [-d] file1 file2", argv[0]);
 
-	if (NULL == (fpA = file(argv[optind])))
-		return EXIT_ERROR;
-	if (NULL == (fpB = file(argv[optind+1])))
-		return EXIT_ERROR;
+	fpA = file(argv[optind]);
+	fpB = file(argv[optind+1]);
 
-	if (NULL == (A = hash_file(fpA))) {
-		error(argv[optind]);
-		return EXIT_ERROR;
-	}
-	if (NULL == (B = hash_file(fpB))) {
-		error(argv[optind+1]);
-		return EXIT_ERROR;
-	}
+	if (NULL == (A = hash_file(fpA)))
+		err(EXIT_ERROR, argv[optind]);
+	if (NULL == (B = hash_file(fpB)))
+		err(EXIT_ERROR, argv[optind+1]);
 
 	ch = edit_distance(fpA, fpB, A, B);
 	if (print_distance) printf("%d\n", ch);
 
+#ifndef NDEBUG
 	free(A);
 	free(B);
 
-	if (ferror(fpA)) {
-		error(argv[optind]);
-		return EXIT_ERROR;
-	}
+	if (ferror(fpA))
+		err(EXIT_ERROR, argv[optind]);
 	fclose(fpA);
 
-	if (ferror(fpB)) {
-		error(argv[optind+1]);
-		return EXIT_ERROR;
-	}	
+	if (ferror(fpB))
+		err(EXIT_ERROR, argv[optind+1]);
 	fclose(fpB);
+#endif /* NDEBUG */
 
 	return 0 < ch;
 }

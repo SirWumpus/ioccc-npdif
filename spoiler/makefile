@@ -7,14 +7,12 @@ E =
 .SUFFIXES : .c .h .i $O $A $E
 
 top_srcdir	:= ..
-PACKAGE 	:= npdif
 CC              := gcc
 CC_E            := -o
 CC_O            := -o
-CFLAGS		:= -g -O0 -std=c99 -Wall -Wno-char-subscripts -pedantic
+CFLAGS		:= -pg -g -O0 -std=c99 -Wall -Wno-char-subscripts -pedantic
 LDFLAGS		:=
 INSTALL 	:= /usr/local
-IT		:= ioccc
 
 .c$O :
 	${CC} ${CFLAGS} -c $<
@@ -30,29 +28,25 @@ $O$E :
 
 all: build
 
-build: ${PACKAGE}$E
+build: ioccc$E makeholes$E npdif$E
 
 clean:
-	-rm ${PACKAGE}.i ${PACKAGE}$O ${PACKAGE}$E tmp* *.tmp *.orig *.core 2>/dev/null
+	-rm npdif.i npdif$O npdif$E *.tmp *.rej *.orig *.core 2>/dev/null
 
 distclean: clean
-	-rm ${IT}$E makeholes$E ${top_srcdir}/prog$E ${top_srcdir}/prog.c \
+	-rm ioccc$E makeholes$E ${top_srcdir}/prog$E ${top_srcdir}/prog.c \
 	${top_srcdir}/prog-test.sh iocccsize$E 2>/dev/null
 
 install:
-	-mv ${PACKAGE}$E $(INSTALL)/bin
-	-cp ${PACKAGE}.txt $(INSTALL)/man/cat1/${PACKAGE}.1
-
-${IT}$E: ${IT}.c
-	${CC} ${CFLAGS} -o${IT}$E ${IT}.c
+	-mv npdif$E $(INSTALL)/bin
+	-cp npdif.txt $(INSTALL)/man/cat1/npdif.1
 
 iocccsize$E: ../rules/iocccsize.c
 	${CC} ${CFLAGS} -oiocccsize$E ../rules/iocccsize.c
 
-${top_srcdir}/prog.c: ${PACKAGE}.c transform.sed ${IT}$E
+${top_srcdir}/prog.c: npdif.c transform.sed ioccc$E
 	@echo '***************************************************************'
-	@sed -f transform.sed ${PACKAGE}.c | sed -e '/^[ 	]*$$/d' >tmp
-	@./${IT}$E -r <tmp >${top_srcdir}/prog.c
+	@sed -f transform.sed npdif.c | sed -e '/^[ 	]*$$/d' | ./ioccc$E -r >${top_srcdir}/prog.c
 	@echo '***************************************************************'
 
 ${top_srcdir}/prog$E: ${top_srcdir}/prog.c

@@ -105,7 +105,7 @@ s/'\\0'/0/g
 #  Functions & Types
 #
 
-s/hash_expand/P/
+s/hash_expand/N/
 s/hash_file/F/
 s/hash_string/V/
 s/echoline/W/
@@ -123,7 +123,7 @@ s/[[:<:]]file[[:>:]]/O/
 
 /debug/d
 #/[[:<:]]print_distance[[:>:]]/d
-s/[[:<:]]print_distance[[:>:]]/q/
+s/[[:<:]]print_distance[[:>:]]/P/
 
 s/argc/x/g
 s/argv/y/g
@@ -137,16 +137,20 @@ s/prev/p/g
 s/next/n/g
 s/offset/o/g
 s/curr/K/g
+s/[[:<:]]tmp[[:>:]]/t/g
 s/fpA/f/g
 s/fpB/g/g
 #s/optind/1/g
+s/[[:<:]]fp_base[[:>:]]/q/g
 s/[[:<:]]fp[[:>:]]/Q/g
 
 s/[[:<:]]edit[[:>:]]/e/g
 s/[[:<:]]seek[[:>:]]/q/g
 s/[[:<:]]base[[:>:]]/b/g
 s/[[:<:]]size[[:>:]]/z/g
-s/hash/h/g
+s/hash/y/g
+
+s/"dv"/"d"/
 
 s/zero_delta/zd/g
 s/zero/z/g

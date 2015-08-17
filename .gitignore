@@ -1,5 +1,6 @@
 *.tws
 *.bak
+*.i
 *.o
 *.obj
 *.exe

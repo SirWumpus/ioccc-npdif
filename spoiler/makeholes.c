@@ -1,3 +1,9 @@
+/*
+ * makeholes.c
+ *
+ * Public Domain 2015 by Anthony Howe.  No warranty.
+ */
+ 
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>

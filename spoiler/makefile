@@ -10,7 +10,7 @@ top_srcdir	:= ..
 CC              := gcc
 CC_E            := -o
 CC_O            := -o
-CFLAGS		:= -pg -g -O0 -std=c99 -Wall -Wno-char-subscripts -pedantic
+CFLAGS		:= -g -O2 -std=c99 -Wall -Wno-char-subscripts -pedantic
 LDFLAGS		:=
 INSTALL 	:= /usr/local
 
@@ -31,7 +31,7 @@ all: build
 build: ioccc$E makeholes$E npdif$E
 
 clean:
-	-rm npdif.i npdif$O npdif$E *.tmp *.rej *.orig *.core 2>/dev/null
+	-rm npdif$E *.i *$O *.tmp *.rej *.orig *.core *.out 2>/dev/null
 
 distclean: clean
 	-rm ioccc$E makeholes$E ${top_srcdir}/prog$E ${top_srcdir}/prog.c \

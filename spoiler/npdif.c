@@ -180,7 +180,7 @@ file(char *u)
 		}
 	}
 
-	if (NULL == fp) err(EXIT_ERROR, u);
+	if (NULL == fp) err(EXIT_ERROR, "%s", u);
 
 	return fp;
 }
@@ -406,9 +406,9 @@ main(int argc, char **argv)
 	fpB = file(argv[optind+1]);
 
 	if (NULL == (A = hash_file(fpA)))
-		err(EXIT_ERROR, argv[optind]);
+		err(EXIT_ERROR, "%s", argv[optind]);
 	if (NULL == (B = hash_file(fpB)))
-		err(EXIT_ERROR, argv[optind+1]);
+		err(EXIT_ERROR, "%s", argv[optind+1]);
 
 	ch = edit_distance(fpA, fpB, A, B);
 	if (print_distance) printf("%d\n", ch);
@@ -418,11 +418,11 @@ main(int argc, char **argv)
 	free(B);
 
 	if (ferror(fpA))
-		err(EXIT_ERROR, argv[optind]);
+		err(EXIT_ERROR, "%s", argv[optind]);
 	fclose(fpA);
 
 	if (ferror(fpB))
-		err(EXIT_ERROR, argv[optind+1]);
+		err(EXIT_ERROR, "%s", argv[optind+1]);
 	fclose(fpB);
 #endif /* NDEBUG */
 

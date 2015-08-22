@@ -3,58 +3,61 @@
 .SUFFIXES :
 A = .a
 O = .o
-E =
-.SUFFIXES : .c .h .i $O $A $E
+.SUFFIXES : .c .h .i $O $A
 
 top_srcdir	:= ..
-CC              := gcc
-CC_E            := -o
-CC_O            := -o
-CFLAGS		:= -g -O2 -std=c99 -Wall -Wno-char-subscripts -pedantic
+CC		:= gcc
+CFLAGS		:= -g -O2 -std=c99 -Wall -pedantic
 LDFLAGS		:=
 INSTALL 	:= /usr/local
+
+W64CC		:= i686-w64-mingw32-gcc
+W64CFLAGS	:= -I. -Os -s -std=c99
 
 .c$O :
 	${CC} ${CFLAGS} -c $<
 
 .c$E :
-	$(CC) $(CFLAGS) $(LDFLAGS) $(CC_E)$*$E $<
+	$(CC) $(CFLAGS) $(LDFLAGS) -o$* $<
 
-$O$E :
-	$(LD) $(LDFLAGS) $(CC_E)$*$E $*$O
+$O :
+	$(LD) $(LDFLAGS) -o$* $*$O
 
 .c.i:
 	${CC} -E ${CFLAGS} $*.c >$*.i
 
 all: build
 
-build: ioccc$E makeholes$E npdif$E
+build: ioccc makeholes npdif
 
 clean:
-	-rm npdif$E *.i *$O *.tmp *.rej *.orig *.core *.out 2>/dev/null
+	-rm npdif npdif-w64 *.i *$O *.tmp *.rej *.orig *.core *.out 2>/dev/null
 
 distclean: clean
-	-rm ioccc$E makeholes$E ${top_srcdir}/prog$E ${top_srcdir}/prog.c \
-	${top_srcdir}/prog-test.sh iocccsize$E 2>/dev/null
+	-rm ioccc makeholes ${top_srcdir}/prog ${top_srcdir}/prog.c \
+	${top_srcdir}/prog-test.sh iocccsize 2>/dev/null
 
 install:
-	-mv npdif$E $(INSTALL)/bin
+	-mv npdif $(INSTALL)/bin
 	-cp npdif.txt $(INSTALL)/man/cat1/npdif.1
 
-iocccsize$E: ../rules/iocccsize.c
-	${CC} ${CFLAGS} -oiocccsize$E ../rules/iocccsize.c
+npdif-w64: err.h npdif.c
+	${W64CC} -DTEST ${W64CFLAGS} ${LDFLAGS} -o$@ npdif.c ${LIBS}
 
-${top_srcdir}/prog.c: npdif.c transform.sed ioccc$E
+iocccsize: ../rules/iocccsize.c
+	${CC} ${CFLAGS} -oiocccsize ../rules/iocccsize.c
+
+${top_srcdir}/prog.c: npdif.c transform.sed ioccc
 	@echo '***************************************************************'
-	@sed -f transform.sed npdif.c | sed -e '/^[ 	]*$$/d' | ./ioccc$E -r >${top_srcdir}/prog.c
+	@sed -f transform.sed npdif.c | sed -e '/^[ 	]*$$/d' | ./ioccc -r >${top_srcdir}/prog.c
 	@echo '***************************************************************'
 
-${top_srcdir}/prog$E: ${top_srcdir}/prog.c
+${top_srcdir}/prog: ${top_srcdir}/prog.c
 	${CC} ${CFLAGS} ${LDFLAGS} -o$@ ${top_srcdir}/prog.c ${LIBS}
 
 ${top_srcdir}/prog-test.sh: npdif.sh
 	sed -e'/^PROG/s/npdif/prog/' npdif.sh >${top_srcdir}/prog-test.sh
 	chmod 755 ${top_srcdir}/prog-test.sh
 
-entry : ${top_srcdir}/prog$E ${top_srcdir}/prog-test.sh
+entry : ${top_srcdir}/prog ${top_srcdir}/prog-test.sh
 

@@ -1,7 +1,27 @@
 #!/bin/ksh
 
-flags="$@"
 PROG="./npdif"
+
+args=$(getopt -- 'f:w' $*)
+if [ $? -ne 0 ]; then
+	echo 'usage: npdif.sh [-w][-f flags]'
+	exit 2
+fi
+set -- $args
+while [ $# -gt 0 ]; do
+	case "$1" in
+	-w)
+		PROG="./npdif-w64"
+		;;
+	-f)
+		flags=$2; shift
+		;;
+	--)
+		shift; break
+		;;
+	esac
+	shift
+done
 
 function distance
 {

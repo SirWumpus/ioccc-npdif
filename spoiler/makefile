@@ -7,12 +7,12 @@ O = .o
 
 top_srcdir	:= ..
 CC		:= gcc
-CFLAGS		:= -g -O2 -std=c99 -Wall -pedantic
+CFLAGS		:= -g -O2 -std=c99 -Wall -pedantic -Wno-char-subscripts
 LDFLAGS		:=
 INSTALL 	:= /usr/local
 
 W64CC		:= i686-w64-mingw32-gcc
-W64CFLAGS	:= -I. -Os -s -std=c99
+W64CFLAGS	:= -I. -Os -s -std=c99 -Wno-char-subscripts
 
 .c$O :
 	${CC} ${CFLAGS} -c $<
@@ -34,8 +34,9 @@ clean:
 	-rm npdif npdif-w64 *.i *$O *.tmp *.rej *.orig *.core *.out 2>/dev/null
 
 distclean: clean
-	-rm ioccc makeholes ${top_srcdir}/prog ${top_srcdir}/prog.c \
-	${top_srcdir}/prog-test.sh iocccsize 2>/dev/null
+	-rm ioccc iocccsize makeholes ${top_srcdir}/prog ${top_srcdir}/*.tmp \
+	${top_srcdir}/*.rej ${top_srcdir}/*.orig ${top_srcdir}/*.sh \
+	${top_srcdir}/*.c ${top_srcdir}/*.html 2>/dev/null
 
 install:
 	-mv npdif $(INSTALL)/bin
@@ -55,9 +56,15 @@ ${top_srcdir}/prog.c: npdif.c transform.sed ioccc
 ${top_srcdir}/prog: ${top_srcdir}/prog.c
 	${CC} ${CFLAGS} ${LDFLAGS} -o$@ ${top_srcdir}/prog.c ${LIBS}
 
-${top_srcdir}/prog-test.sh: npdif.sh
-	sed -e'/^PROG/s/npdif/prog/' npdif.sh >${top_srcdir}/prog-test.sh
+${top_srcdir}/prog-test.sh: npdif-test.sh
+	sed -e's/npdif/prog/' npdif-test.sh >${top_srcdir}/prog-test.sh
 	chmod 755 ${top_srcdir}/prog-test.sh
 
-entry : ${top_srcdir}/prog ${top_srcdir}/prog-test.sh
+${top_srcdir}/avgtime.sh: avgtime.sh
+	cp avgtime.sh ${top_srcdir}
+
+${top_srcdir}/makeholes.c: makeholes.c
+	cp makeholes.c ${top_srcdir}
+
+entry : ${top_srcdir}/prog ${top_srcdir}/prog-test.sh ${top_srcdir}/avgtime.sh ${top_srcdir}/makeholes.c
 

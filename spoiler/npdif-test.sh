@@ -2,9 +2,9 @@
 
 PROG="./npdif"
 
-args=$(getopt -- 'f:w' $*)
+args=$(getopt 'f:w' $*)
 if [ $? -ne 0 ]; then
-	echo 'usage: npdif.sh [-w][-f flags]'
+	echo "usage: npdif-test.sh [-w][-f flags]"
 	exit 2
 fi
 set -- $args

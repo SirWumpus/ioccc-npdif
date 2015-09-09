@@ -26,24 +26,26 @@ $O :
 .c.i:
 	${CC} -E ${CFLAGS} $*.c >$*.i
 
+ZIP	:= README.txt prog-w64.exe prog-test.sh avgtime.sh makeholes-w64.exe
+
 all: build
 
 build: ioccc makeholes npdif
 
 clean:
 	-rm npdif npdif-w64 *.i *$O *.tmp *.rej *.orig *.core *.out 2>/dev/null
+	-cd ${top_srcdir}; rm prog *.exe *.i *$O *.tmp *.rej *.orig *.core *.out 2>/dev/null
 
 distclean: clean
-	-rm ioccc iocccsize makeholes ${top_srcdir}/prog ${top_srcdir}/*.tmp \
-	${top_srcdir}/*.rej ${top_srcdir}/*.orig ${top_srcdir}/*.sh \
-	${top_srcdir}/*.c ${top_srcdir}/*.html 2>/dev/null
+	-rm ioccc iocccsize makeholes transform.gsed 2>/dev/null
+	-cd ${top_srcdir}; rm *.c *.sh *.html *.zip 2>/dev/null
 
 install:
 	-mv npdif $(INSTALL)/bin
 	-cp npdif.txt $(INSTALL)/man/cat1/npdif.1
 
 npdif-w64: err.h npdif.c
-	${W64CC} -DTEST ${W64CFLAGS} ${LDFLAGS} -o$@ npdif.c ${LIBS}
+	${W64CC} ${W64CFLAGS} ${LDFLAGS} -o$@ npdif.c
 
 iocccsize: ../rules/iocccsize.c
 	${CC} ${CFLAGS} -oiocccsize ../rules/iocccsize.c
@@ -54,7 +56,10 @@ ${top_srcdir}/prog.c: npdif.c transform.sed ioccc
 	@echo '***************************************************************'
 
 ${top_srcdir}/prog: ${top_srcdir}/prog.c
-	${CC} ${CFLAGS} ${LDFLAGS} -o$@ ${top_srcdir}/prog.c ${LIBS}
+	${CC} ${CFLAGS} ${LDFLAGS} -o$@ ${top_srcdir}/prog.c
+
+${top_srcdir}/makeholes-w64: makeholes.c
+	${W64CC} ${W64CFLAGS} -Ispoiler ${LDFLAGS} -o$@ makeholes.c
 
 ${top_srcdir}/prog-test.sh: npdif-test.sh
 	sed -e's/npdif/prog/' npdif-test.sh >${top_srcdir}/prog-test.sh
@@ -68,3 +73,18 @@ ${top_srcdir}/makeholes.c: makeholes.c
 
 entry : ${top_srcdir}/prog ${top_srcdir}/prog-test.sh ${top_srcdir}/avgtime.sh ${top_srcdir}/makeholes.c
 
+transform.gsed: ioccc transform.sed npdif.c
+	@echo '***************************************************************'
+	@sed -e's/\[\[:\([<>]\):\]\]/\\\1/g' transform.sed >transform.gsed
+	@sed -f transform.gsed npdif.c | sed -e '/^[ 	]*$$/d' | ./ioccc -r >${top_srcdir}/prog.c
+	@echo '***************************************************************'
+
+${top_srcdir}/prog-w64: err.h transform.gsed
+	${W64CC} ${W64CFLAGS} -Ispoiler ${LDFLAGS} -o$@ ${top_srcdir}/prog.c
+
+entry64 : ${top_srcdir}/prog-w64 ${top_srcdir}/prog-test.sh ${top_srcdir}/avgtime.sh \
+	  ${top_srcdir}/makeholes-w64 ${top_srcdir}/makeholes.c
+
+zip: entry64
+	-rm -f ${top_srcdir}/*.zip 2>/dev/null
+	cd ${top_srcdir}; 7za a -tzip npdif.zip ${ZIP}

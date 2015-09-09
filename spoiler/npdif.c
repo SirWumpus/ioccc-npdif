@@ -265,7 +265,7 @@ snake(int k)
 	Vertex v = fp[k+1];
 	
 	/* max(fp[k-1] + 1, fp[k+1]) */
-	int y, op;
+	int x, y, op;
 	Edit *prev;
 	if (v.y < h.y+1) {
 		op = 1;
@@ -284,7 +284,7 @@ snake(int k)
 	 * y-horizontal	= insert from B
 	 * x-vertical	= delete from A
 	 */
-	int x = y - k;
+	x = y - k;
 	DUMP("snake in k=%d y=%d x=%d", k, y, x);
 
 	if (0 < y || 0 < x) {
@@ -354,7 +354,7 @@ edit_distance()
 	/* Shift origin to (M+1). */
 	fp = fp_base + A->length + 1;
 	
-	DEBUG("delta=%d M=%zu N=%zu fp.len=%zu", delta, A->length, B->length, (A->length + B->length + 3));		
+	DEBUG("delta=%d M=%lu N=%lu fp.len=%lu", delta, A->length, B->length, (A->length + B->length + 3));		
 
 	p = -1;
 	do {
@@ -373,7 +373,7 @@ edit_distance()
 		dump_script(fp[delta].edit);
 	free(fp_base);
 
-	DEBUG("dist=%d delta=%d p=%d M=%zu N=%zu ", (delta < 0 ? -delta : delta) + 2 * p, delta, p, A->length, B->length);		
+	DEBUG("dist=%d delta=%d p=%d M=%lu N=%lu ", (delta < 0 ? -delta : delta) + 2 * p, delta, p, A->length, B->length);		
 
 	return delta + 2 * p;
 }

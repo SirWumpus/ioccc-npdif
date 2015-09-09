@@ -5,14 +5,20 @@ A = .a
 O = .o
 .SUFFIXES : .c .h .i $O $A
 
+########################################################################
+### No further configuration beyond this point.
+########################################################################
+
 top_srcdir	:= ..
 CC		:= gcc
-CFLAGS		:= -g -O2 -std=c99 -Wall -pedantic -Wno-char-subscripts
+CFLAGS		:= -g -O2 -std=c89 -Wall -pedantic -Wno-char-subscripts
 LDFLAGS		:=
 INSTALL 	:= /usr/local
 
 W64CC		:= i686-w64-mingw32-gcc
 W64CFLAGS	:= -I. -Os -s -std=c99 -Wno-char-subscripts
+
+ZIP	:= README.txt prog-w64.exe prog-test.sh avgtime.sh makeholes-w64.exe
 
 .c$O :
 	${CC} ${CFLAGS} -c $<
@@ -26,7 +32,7 @@ $O :
 .c.i:
 	${CC} -E ${CFLAGS} $*.c >$*.i
 
-ZIP	:= README.txt prog-w64.exe prog-test.sh avgtime.sh makeholes-w64.exe
+########################################################################
 
 all: build
 

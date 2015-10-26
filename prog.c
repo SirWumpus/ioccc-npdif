@@ -184,7 +184,7 @@ K(int k)
 	Q[k].y = y;
 }
 int
-T()
+T(void)
 {
 	int k, p, d;
 	if (A->j > B->j) {
@@ -236,7 +236,7 @@ main(int x, char **y)
 		err(2, "%s", y[optind]);
 	if (!(B = F(g)))
 		err(2, "%s", y[optind+1]);
-	i = T(f, g, A, B);
+	i = T();
 	if (P) printf("%d\n", i);
 	return 0 < i;
 }

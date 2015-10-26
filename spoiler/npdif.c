@@ -325,7 +325,7 @@ snake(int k)
 }
 
 int
-edit_distance()
+edit_distance(void)
 {
 	int k, p, delta;
 
@@ -410,7 +410,7 @@ main(int argc, char **argv)
 	if (NULL == (B = hash_file(fpB)))
 		err(EXIT_ERROR, "%s", argv[optind+1]);
 
-	ch = edit_distance(fpA, fpB, A, B);
+	ch = edit_distance();
 	if (print_distance) printf("%d\n", ch);
 
 #ifndef NDEBUG

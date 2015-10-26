@@ -11,7 +11,7 @@ O = .o
 
 top_srcdir	:= ..
 CC		:= gcc
-CFLAGS		:= -g -O2 -std=c89 -Wall -pedantic -Wno-char-subscripts
+CFLAGS		:= -g -O2 -std=c99 -Wall -pedantic -Wno-char-subscripts
 LDFLAGS		:=
 INSTALL 	:= /usr/local
 

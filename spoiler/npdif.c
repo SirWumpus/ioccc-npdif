@@ -15,6 +15,7 @@
  */
 
 #define FAST
+#define FNV64
 
 #include <err.h>
 #include <stdio.h>
@@ -37,8 +38,21 @@
  *	32-bit		16777619	0x01000193	2166136261		0x811C9DC5
  *	64-bit		1099511628211	0x100000001b3	14695981039346656037	0xCBF29CE34244AD25
  */
-#define FNV32_INIT		2166136261UL
-#define FNV32_PRIME		16777619UL
+#ifdef FNV64
+
+#define FNV_INIT		14695981039346656037ULL
+#define FNV_PRIME		1099511628211ULL
+
+typedef unsigned long long Hash;
+
+#else /* FNV64 */
+ 
+#define FNV_INIT		2166136261UL
+#define FNV_PRIME		16777619UL
+
+typedef unsigned long Hash;
+
+#endif /* FNV64 */
 
 typedef struct edit {
 	int op;			/* 1 = insert, 0 = delete */
@@ -54,8 +68,6 @@ typedef struct {
 	Edit *edit;
 } Vertex;
 	
-typedef unsigned long Hash;
-
 typedef struct {
 	long seek;
 	Hash hash;
@@ -124,17 +136,23 @@ hash_file(FILE *fp)
 	/* Assume 1-base array. */
 	lineno = 1;
 	offset = 0;
-	h = FNV32_INIT;
+	h = FNV_INIT;
 	hash->base[lineno].seek = offset;
 	while (0 < (n = fread(buf, 1, sizeof (buf), fp))) {
 		b = buf;
 		while (0 < n--) {
 			h ^= *b;
 #ifdef FAST
+
+#ifdef FNV64
+			/* 0x100000001b3 */
+			h += (h<<1) + (h<<4) + (h<<5) + (h<<7) + (h<<8) + (h<<40);
+#else /* FNV64 */
 			/* 0x01000193 */
 			h += (h<<1) + (h<<4) + (h<<7) + (h<<8) + (h<<24);
+#endif /* FNV64 */
 #else /* FAST */
-			h *= FNV32_PRIME;
+			h *= FNV_PRIME;
 #endif /* FAST */
 			offset++;
 			if (*b++ == '\n') {
@@ -142,7 +160,7 @@ hash_file(FILE *fp)
 				if (hash->size <= lineno)
 					hash = hash_expand(hash);
 				hash->base[lineno].seek = offset;
-				h = FNV32_INIT;
+				h = FNV_INIT;
 			}
 		}
 	}

@@ -61,6 +61,11 @@ ${top_srcdir}/prog.c: npdif.c transform.sed ioccc
 	@sed -f transform.sed npdif.c | sed -e '/^[ 	]*$$/d' | ./ioccc -r >${top_srcdir}/prog.c
 	@echo '***************************************************************'
 
+rule2: npdif.c transform.sed ioccc
+	@echo '***************************************************************'
+	@sed -f transform.sed npdif.c | sed -e '/^[ 	]*$$/d' | ./ioccc -i
+	@echo '***************************************************************'
+
 ${top_srcdir}/prog: ${top_srcdir}/prog.c
 	${CC} ${CFLAGS} ${LDFLAGS} -o$@ ${top_srcdir}/prog.c
 

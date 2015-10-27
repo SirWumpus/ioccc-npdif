@@ -19,6 +19,14 @@
 /^#define FNV32_INIT/d
 /^#define FNV32_PRIME/d
 
+
+/#define FNV64/d
+/^#ifdef FNV64/d
+/^#else.*FNV64/,/^#endif.*FNV64/d
+
+/^#define FNV_INIT/d
+/^#define FNV_PRIME/d
+
 /^#ifndef INIT_SIZE/,/#endif/d
 
 
@@ -36,9 +44,12 @@ s/EXIT_ERROR/2/
 s/EXIT_FAILURE/1/
 s/EXIT_SUCCESS/0/
 s/INIT_SIZE/65536/g
-s/FNV32_INIT/2166136261UL/
-s/FNV32_PRIME/16777619UL/
 
+#s/FNV_INIT/2166136261UL/
+#s/FNV_PRIME/16777619UL/
+
+s/FNV_INIT/14695981039346656037ULL/
+s/FNV_PRIME/1099511628211ULL/
 
 #
 #  Types
@@ -49,7 +60,8 @@ s/static //g
 s/HashArray/H/g
 s/HashLine/h/g
 /typedef.*Hash/d
-s/Hash/unsigned long/g
+#s/Hash/unsigned long/g
+s/Hash/unsigned long long/g
 s/Edit/E/g
 s/Vertex/X/g
 s/(void) //

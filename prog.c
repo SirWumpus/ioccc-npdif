@@ -12,7 +12,7 @@ typedef struct {
 } X;
 typedef struct {
 	long q;
-	unsigned long y;
+	unsigned long long y;
 } h;
 typedef struct {
 	unsigned long z;
@@ -40,27 +40,27 @@ N(H *O)
 H *
 F(FILE *Q)
 {
-	unsigned long h;
+	unsigned long long h;
 	H *y;
 	long L, o, n;
 	unsigned char buf[65536], *b;
 	y = N(0);
 	L = 1;
 	o = 0;
-	h = 2166136261UL;
+	h = 14695981039346656037ULL;
 	y->b[L].q = o;
 	while (0 < (n = fread(buf, 1, sizeof (buf), Q))) {
 		b = buf;
 		while (0 < n--) {
 			h ^= *b;
-			h += (h<<1) + (h<<4) + (h<<7) + (h<<8) + (h<<24);
+			h += (h<<1) + (h<<4) + (h<<5) + (h<<7) + (h<<8) + (h<<40);
 			o++;
 			if (*b++ == '\n') {
 				y->b[L++].y = h;
 				if (y->z <= L)
 					y = N(y);
 				y->b[L].q = o;
-				h = 2166136261UL;
+				h = 14695981039346656037ULL;
 			}
 		}
 	}

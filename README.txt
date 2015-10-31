@@ -66,7 +66,7 @@ Fowler, Noll, Vo; 1994
 <http://www.isthe.com/chongo/tech/comp/fnv/index.html>
 
 Fowler, Noll, Vo on Wikipedia  
-<http://www.isthe.com/chongo/tech/comp/fnv/index.html>
+<https://en.wikipedia.org/wiki/Fowler%E2%80%93Noll%E2%80%93Vo_hash_function>
 
 "diff", The Open Group Base Specifications Issue 7  
 IEEE Std 1003.1, 2013 Edition  

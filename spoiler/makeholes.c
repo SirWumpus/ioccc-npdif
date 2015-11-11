@@ -42,7 +42,7 @@ process(const char *file)
 		goto error2;
 
 	for (x = 0; x < size; )
-		x += read(rd, seeks, size-x);
+		x += read(rd, seeks+x, size-x);
 	
 	mask = (off_t)(~0UL >> 1);
 	for (n = 0; n < count; n++) {

@@ -1,4 +1,5 @@
 #!/bin/ksh
+# Assume a POSIX compliant shell.
 
 PROG="./npdif"
 
@@ -125,5 +126,7 @@ dif ABCDE.tmp 123.tmp 1
 # but differ in the output.
 dif CBABAC.tmp ABCABBA.tmp 1
 dif ABCABBA.tmp CBABAC.tmp 1
+
+rm copy.tmp* 2>/dev/null
 
 echo DONE

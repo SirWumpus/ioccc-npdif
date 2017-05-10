@@ -30,10 +30,10 @@ function distance
 	typeset B="$1"; shift
 	typeset expect="$1"; shift
 
-	printf "$A" | sed -e 's/./&\
-/g' >$A.tmp
-	printf "$B" | sed -e 's/./&\
-/g' >$B.tmp
+	printf "$A" | sed -n 's/./&\
+/g; s/.$//p' >$A.tmp
+	printf "$B" | sed -n 's/./&\
+/g; s/.$//p' >$B.tmp
 
 	echo "<<< A='$A' B='$B' $@"
 	typeset dist=$($PROG -d $@ $A.tmp $B.tmp | tr -d '\r')
